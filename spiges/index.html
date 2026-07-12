@@ -35,12 +35,7 @@
 </style>
 </head>
 <body>
-<nav style="background:#0d1f38;color:#fff;font-size:13px;padding:.45rem 1.5rem;display:flex;gap:1.2rem;flex-wrap:wrap;align-items:center">
-  <span style="opacity:.6">CH-IQI Kompass</span>
-  <a href="../" style="color:#cfe0f5;text-decoration:none">Cockpit (QIP 2024)</a>
-  <a href="./" style="color:#ffd766;text-decoration:none">SpiGes-Import <sup style="opacity:.7">Beta</sup></a>
-  <a href="../chiqi/" style="color:#cfe0f5;text-decoration:none">Unterjährige Auswertung <sup style="opacity:.7">Beta</sup></a>
-</nav>
+<div id="standaloneNav" class="hint" style="display:none;padding:.3rem 1.5rem;background:#0d1f38;"><a href="../#spiges" target="_top" style="color:#cfe0f5;font-size:.78rem;text-decoration:none">&larr; CH-IQI Kompass</a></div>
 <header>
   <h1>CH-IQI Kompass — SpiGes-Import <small>(Machbarkeits-Demo)</small></h1>
   <p>Unterjährige Auswertung eigener Falldaten · SpiGes XML Format 1.4 / 1.5</p>
@@ -151,5 +146,6 @@
   }
 })();
 </script>
+<script>if(window.top===window.self){document.getElementById("standaloneNav").style.display="block";}</script>
 </body>
 </html>

@@ -1,41 +1,37 @@
 # CH-IQI Kompass — Deploy-Ordner (GitHub Pages)
 
-Dieser Ordner ist **self-contained**: Er kann 1:1 als Inhalt des GitHub-Repos
-(bzw. des Pages-Wurzelverzeichnisses) hochgeladen werden. Alle Pfade sind
-relativ innerhalb dieses Ordners — nichts verweist nach aussen.
+Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schritte.
 
-## Struktur
+## Struktur (Shell-Konzept)
 
-| Pfad | Seite |
+| Pfad | Rolle |
 |---|---|
-| `index.html` | CH-IQI Cockpit (BAG-Publikationsdaten QIP 2024) |
+| `index.html` | **Shell** — Landingpage mit Kopfleiste/Tabs, lädt Unterseiten im Frame. Die kommunizierte URL https://c-voelkle.github.io/chiqi-kompass/ zeigt weiterhin standardmässig das Cockpit. |
+| `cockpit.html` | Cockpit QIP 2024 (bisheriger Inhalt der index.html) |
 | `spiges/index.html` | SpiGes-Import-Demo (Beta) + Parser + Testdatei |
 | `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) + Engine |
 
-Die drei Seiten sind über die dunkle Navigationsleiste oben verlinkt.
+Teilbare Direktlinks: `…/#cockpit`, `…/#spiges`, `…/#chiqi`.
+Unterseiten funktionieren auch standalone (zeigen dann einen Zurück-Link).
 
 ## Upload auf github.com (manuell)
 
-1. Im Repo auf **Add file → Upload files**.
-2. Den **gesamten Inhalt** dieses Ordners hineinziehen — inklusive der
-   Unterordner `spiges/` und `chiqi/` (Drag-and-drop des ganzen Ordnerinhalts
-   erhält die Unterordner; einzelne Dateien flach hochladen zerstört die Pfade).
-3. Commit. Fertig — keine Build-Schritte nötig.
+1. Falls noch vorhanden: alte `spiges_import_demo.html` im Repo löschen.
+2. **Add file → Upload files**: den gesamten Inhalt dieses Ordners hineinziehen —
+   inklusive Unterordner `spiges/` und `chiqi/`. Die bestehende `index.html`
+   wird automatisch durch die Shell ersetzt; `cockpit.html` kommt neu dazu.
+3. Commit. Nach 1–2 Minuten ist Pages aktualisiert.
 
-**Wichtig:** Ordnerstruktur nicht verändern und Dateien nicht umbenennen.
-`spiges_parser.js` liegt bewusst doppelt vor (in `spiges/` und `chiqi/`),
-damit jeder Unterordner für sich funktioniert.
+**Nichts umbenennen, Struktur nicht verändern.** `spiges_parser.js` liegt
+bewusst doppelt (in `spiges/` und `chiqi/`), damit jeder Ordner für sich läuft.
 
-## Quellcode-Hinweis
+## Pflege
 
-Die Originale werden ausserhalb dieses Ordners gepflegt
-(`../spiges/`, `../chiqi-engine/` mit Tests und Build-Skript).
-Nach Änderungen dort die Dateien hierher kopieren:
+Quellcode wird ausserhalb gepflegt (`../spiges/`, `../chiqi-engine/`, Tests dort).
+Nach Änderungen kopieren:
 
-    cp spiges/spiges_parser.js deploy/spiges/  &&  cp spiges/spiges_parser.js deploy/chiqi/
+    cp spiges/spiges_parser.js deploy/spiges/ && cp spiges/spiges_parser.js deploy/chiqi/
     cp chiqi-engine/chiqi_engine.js chiqi-engine/chiqi_demo_defs.js deploy/chiqi/
 
-Die BAG-Quelldateien (SQL-Strings, Referenzdaten, PDF-Manual) und
-`chiqi_definitions_v52.json` gehören **nicht** in dieses Verzeichnis
-(Nutzungsbedingungen beim BAG angefragt); die Demos brauchen nur
-`chiqi_demo_defs.js`.
+BAG-Quelldateien und `chiqi_definitions_v52.json` gehören NICHT hierher
+(Nutzungsbedingungen angefragt); die Demos brauchen nur `chiqi_demo_defs.js`.
