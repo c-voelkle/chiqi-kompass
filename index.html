@@ -26,7 +26,6 @@
   <div class="brand">🧭 CH-IQI Kompass<small>Prototyp</small></div>
   <nav id="tabs">
     <a href="#cockpit" data-page="cockpit">Cockpit QIP 2024</a>
-    <a href="#spiges" data-page="spiges">SpiGes-Import <sup>Beta</sup></a>
     <a href="#chiqi" data-page="chiqi">Unterjährige Auswertung <sup>Beta</sup></a>
   </nav>
 </header>
@@ -35,13 +34,13 @@
 (function () {
   var PAGES = {
     cockpit: { src: 'cockpit.html', titel: 'CH-IQI Kompass — Cockpit QIP 2024' },
-    spiges:  { src: 'spiges/index.html', titel: 'CH-IQI Kompass — SpiGes-Import (Beta)' },
     chiqi:   { src: 'chiqi/index.html', titel: 'CH-IQI Kompass — Unterjährige Auswertung (Beta)' }
   };
   var frame = document.getElementById('frame');
   var links = document.querySelectorAll('#tabs a');
   function show() {
     var key = (location.hash || '#cockpit').slice(1);
+    if (key === 'spiges') key = 'chiqi';
     if (!PAGES[key]) key = 'cockpit';
     var page = PAGES[key];
     if (frame.getAttribute('src') !== page.src) frame.setAttribute('src', page.src);

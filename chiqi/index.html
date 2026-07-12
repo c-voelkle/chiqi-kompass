@@ -44,7 +44,7 @@
   <div class="card">
     <div id="drop">
       <strong>SpiGes-Daten-File (XML) hier ablegen</strong> oder klicken zum Auswählen
-      <div class="hint">z.&nbsp;B. alle bereits codierten Fälle des laufenden Jahres</div>
+      <div class="hint">z.&nbsp;B. alle bereits codierten Fälle des laufenden Jahres · zum Ausprobieren: <a href="spiges_testdata_v15.xml" download>synthetisches Testfile</a></div>
       <input type="file" id="fileInput" accept=".xml" hidden>
     </div>
     <div class="privacy">🔒 <strong>Die Daten verlassen Ihren Computer nicht.</strong>
@@ -73,6 +73,20 @@
       Demo mit Spezifikationen v5.2 — die produktive Version wird v5.5 nutzen.
     </div>
     <p class="hint" id="importInfo"></p>
+  </div>
+
+  <div class="card" id="protoCard" style="display:none">
+    <details>
+      <summary style="cursor:pointer;font-size:1.05rem;color:var(--blau);font-weight:600">Importprotokoll &amp; Plausibilisierung</summary>
+      <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem">
+        <div style="flex:1 1 260px"><h2>Protokoll</h2><table id="protoTable"></table></div>
+        <div style="flex:1 1 200px"><h2>Austritte nach Quartal</h2><table id="quartalTable"></table>
+          <p class="hint">Deutlich weniger Fälle im letzten Quartal? Dann ist die Codierung
+          dort vermutlich noch unvollständig (Kodierverzug).</p></div>
+        <div style="flex:1 1 200px"><h2>Häufigste Hauptdiagnosen</h2><table id="hdTable"></table></div>
+      </div>
+      <div id="warnings"></div>
+    </details>
   </div>
 </main>
 <script>
@@ -127,6 +141,27 @@
         (res.meta.warnings.length ? ' · ⚠ ' + res.meta.warnings.length + ' Warnung(en)' : '');
       statusEl.innerHTML = '<span class="ok">✔ Auswertung abgeschlossen</span>';
       document.getElementById('resultCard').style.display = '';
+
+      // Importprotokoll & Plausibilisierung
+      var sum = SpiGesParser.summarizeCases(res.cases);
+      function rows(id, data) {
+        document.getElementById(id).innerHTML = data.map(function (r) {
+          return '<tr><th>' + esc(r[0]) + '</th><td class="num">' + esc(r[1]) + '</td></tr>';
+        }).join('');
+      }
+      rows('protoTable', [
+        ['Datei', res.meta.importprotokoll.datei],
+        ['SpiGes-Version', res.meta.formatVersion || '—'],
+        ['Unternehmen (ent_id)', res.meta.entId || '—'],
+        ['Standorte (BUR)', res.meta.standorte.join(', ') || '—'],
+        ['Fälle / Diagnosen / CHOP', res.meta.counts.faelle + ' / ' + res.meta.counts.diagnosen + ' / ' + res.meta.counts.behandlungen],
+        ['Verstorben (gesamt)', sum.verstorben]
+      ]);
+      rows('quartalTable', Object.keys(sum.nachQuartal).sort().map(function (q) { return [q, sum.nachQuartal[q]]; }));
+      rows('hdTable', sum.topHauptdiagnosen.slice(0, 8).map(function (h) { return [h.icd3, h.n]; }));
+      document.getElementById('warnings').innerHTML = res.meta.warnings.length
+        ? '<p class="warn" style="color:var(--orange);font-size:.85rem">⚠ ' + res.meta.warnings.map(esc).join('<br>⚠ ') + '</p>' : '';
+      document.getElementById('protoCard').style.display = '';
     } catch (e) {
       statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
     }
