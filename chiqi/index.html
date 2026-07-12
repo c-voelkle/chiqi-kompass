@@ -32,6 +32,19 @@
   #status { font-size:.9rem; margin-top:.6rem; }
   .ok { color:var(--gruen); } .err { color:var(--rot); }
   .badge { display:inline-block; font-size:.72rem; background:var(--hell); border:1px solid var(--rand); border-radius:4px; padding:.1rem .45rem; margin-left:.4rem; color:#51677d; }
+  #btnPdf { float:right; background:var(--blau); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; font-size:.85rem; cursor:pointer; }
+  #btnPdf:hover { opacity:.9; }
+  .print-only { display:none; }
+  @media print {
+    body { background:#fff; }
+    header, #importCard, #status, #btnPdf, #standaloneNav { display:none !important; }
+    main { max-width:none; margin:0; padding:0; }
+    .card { border:0; box-shadow:none; padding:.4rem 0; margin-bottom:.8rem; break-inside:avoid; }
+    .print-only { display:block !important; }
+    details > summary { list-style:none; cursor:default; }
+    .warnbox { break-inside:avoid; }
+    a { text-decoration:none; color:inherit; }
+  }
 </style>
 </head>
 <body>
@@ -41,7 +54,7 @@
   <p>SpiGes-Import → CH-IQI-Berechnung im Browser · Demo-Set: 3 Mortalitätsindikatoren · Spezifikationen v5.2 (BAG)</p>
 </header>
 <main>
-  <div class="card">
+  <div class="card" id="importCard">
     <div id="drop">
       <strong>SpiGes-Daten-File (XML) hier ablegen</strong> oder klicken zum Auswählen
       <div class="hint">z.&nbsp;B. alle bereits codierten Fälle des laufenden Jahres · zum Ausprobieren: <a href="spiges_testdata_v15.xml" download>synthetisches Testfile</a></div>
@@ -54,6 +67,11 @@
   </div>
 
   <div class="card" id="resultCard" style="display:none">
+    <div class="print-only" id="printHead">
+      <h1 style="font-size:1.3rem;color:var(--blau);margin:0 0 .2rem">CH-IQI Kompass — Unterjährige Auswertung</h1>
+      <table style="margin:.4rem 0 1rem"><tbody id="printMeta"></tbody></table>
+    </div>
+    <button id="btnPdf" title="Druckoptimierten Bericht erzeugen — im Dialog «Als PDF speichern» wählen">&#128196; PDF-Bericht</button>
     <h2>CH-IQI-Indikatoren <span class="badge" id="metaBadge"></span></h2>
     <table>
       <thead><tr>
@@ -162,10 +180,36 @@
       document.getElementById('warnings').innerHTML = res.meta.warnings.length
         ? '<p class="warn" style="color:var(--orange);font-size:.85rem">⚠ ' + res.meta.warnings.map(esc).join('<br>⚠ ') + '</p>' : '';
       document.getElementById('protoCard').style.display = '';
+
+      // Druckkopf
+      var quartale = Object.keys(sum.nachQuartal).sort();
+      var zeitraum = quartale.length ? quartale[0] + (quartale.length > 1 ? ' bis ' + quartale[quartale.length - 1] : '') : '—';
+      document.getElementById('printMeta').innerHTML = [
+        ['Datenquelle', res.meta.importprotokoll.datei + ' (SpiGes ' + (res.meta.formatVersion || '?') + ')'],
+        ['Unternehmen / Standorte', (res.meta.entId || '—') + ' / ' + (res.meta.standorte.join(', ') || '—')],
+        ['Auswertungszeitraum (Austritte)', zeitraum],
+        ['Fälle', res.meta.counts.faelle + ' (' + austritte + ' Austritte, ' + (res.meta.counts.faelle - austritte) + ' noch hospitalisiert)'],
+        ['Bericht erstellt', new Date().toLocaleString('de-CH')],
+        ['Methodik', 'CH-IQI Spezifikationen v' + CHIQI_DEMO.meta.chiqiVersion + ' (BAG) · Engine v' + ChiqiEngine.ENGINE_VERSION + ' · Verarbeitung vollständig lokal, keine Datenübermittlung']
+      ].map(function (r) {
+        return '<tr><th style="white-space:nowrap">' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
+      }).join('');
     } catch (e) {
       statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
     }
   }
+  document.getElementById('btnPdf') && document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'btnPdf') window.print();
+  });
+  var detailsWasOpen = null;
+  window.addEventListener('beforeprint', function () {
+    var d = document.querySelector('#protoCard details');
+    if (d) { detailsWasOpen = d.open; d.open = true; }
+  });
+  window.addEventListener('afterprint', function () {
+    var d = document.querySelector('#protoCard details');
+    if (d && detailsWasOpen !== null) d.open = detailsWasOpen;
+  });
 })();
 </script>
 <script>if(window.top===window.self){document.getElementById("standaloneNav").style.display="block";}</script>
