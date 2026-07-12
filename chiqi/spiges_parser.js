@@ -11,13 +11,13 @@
  *  - Streaming-fähig: verarbeitet Chunks (Browser File.stream() /
  *    Node ReadStream), damit auch Files > 100 MB ohne DOM-Aufbau
  *    verarbeitet werden können. SpiGes trägt alle Daten in XML-Attributen,
- *    Textknoten existieren nicht — das erlaubt einen schlanken SAX-Ansatz.
+ *    Textknoten existieren nicht. Das erlaubt einen schlanken SAX-Ansatz.
  *  - Nur das Daten-File wird gelesen. Das Identifikatoren-File (AHV-Nr.,
  *    Geburtsdatum) wird bewusst NICHT unterstützt: Es wird für die
  *    CH-IQI-Auswertung nicht benötigt.
  *
  * Quellen:
- *  - BFS: «SpiGes XML Format 1.5 — Beschreibung der XML-Datei für den
+ *  - BFS: «SpiGes XML Format 1.5 - Beschreibung der XML-Datei für den
  *    Datenimport in die SpiGes-Plattform», 08.08.2025 (do-d-14.04-spiges-b)
  *  - SpiGesXML (R-Paket, Fachstelle für Statistik Kt. SG):
  *    https://swissstatsr.org/SpiGesXML/ (Node-/Variablennamen, XSD-Referenzen)
@@ -88,7 +88,7 @@
    * Minimaler streaming XML-Tokenizer.
    * Verlässt sich auf XML-Wohlgeformtheit: '<' ist in Attributwerten illegal
    * (muss &lt; sein) und markiert daher immer Markup-Beginn. '>' kann in
-   * Attributwerten vorkommen — deshalb Quote-Tracking beim Tag-Scan.
+   * Attributwerten vorkommen; deshalb Quote-Tracking beim Tag-Scan.
    */
   function Tokenizer(onStart, onEnd, onError) {
     this.buf = '';
@@ -157,7 +157,7 @@
     }
     this.buf = buf.slice(pos);
     if (this.buf.length > 5e6) {
-      this.onError('Unvollständiges XML-Konstrukt > 5 MB — Abbruch (Datei defekt?)');
+      this.onError('Unvollständiges XML-Konstrukt > 5 MB, Abbruch (Datei defekt?)');
     }
   };
 
@@ -205,7 +205,7 @@
           if (!ok) this.warn('Unbekannter Namespace: ' + attrs.xmlns);
         }
         if (attrs.version && ['1.4', '1.5'].indexOf(attrs.version) === -1) {
-          this.warn('Formatversion "' + attrs.version + '" — Parser ist für 1.4/1.5 ausgelegt.');
+          this.warn('Formatversion "' + attrs.version + '". Der Parser ist für 1.4/1.5 ausgelegt.');
         }
         break;
 
@@ -421,7 +421,7 @@
 
     if (fatal) throw new Error(fatal);
     if (builder.meta.counts.faelle === 0) {
-      builder.warn('Keine Fälle gefunden — ist dies ein SpiGes-DATEN-File (nicht das Identifikatoren-File)?');
+      builder.warn('Keine Fälle gefunden. Ist dies ein SpiGes-DATEN-File (nicht das Identifikatoren-File)?');
     }
 
     builder.meta.importprotokoll = {

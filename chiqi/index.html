@@ -50,7 +50,7 @@
 <body>
 <div id="standaloneNav" class="hint" style="display:none;padding:.3rem 1.5rem;background:#0d1f38;"><a href="../#chiqi" target="_top" style="color:#cfe0f5;font-size:.78rem;text-decoration:none">&larr; CH-IQI Kompass</a></div>
 <header>
-  <h1>CH-IQI Kompass — Unterjährige Indikator-Auswertung <small>(Machbarkeits-Demo)</small></h1>
+  <h1>CH-IQI Kompass: Unterjährige Indikator-Auswertung <small>(Machbarkeits-Demo)</small></h1>
   <p>SpiGes-Import → CH-IQI-Berechnung im Browser · Demo-Set: 3 Mortalitätsindikatoren · Spezifikationen v5.2 (BAG)</p>
 </header>
 <main>
@@ -61,17 +61,17 @@
       <input type="file" id="fileInput" accept=".xml" hidden>
     </div>
     <div class="privacy">🔒 <strong>Die Daten verlassen Ihren Computer nicht.</strong>
-      Import und Indikatorberechnung laufen vollständig lokal in Ihrem Browser —
-      keine Übermittlung an einen Server, funktioniert auch offline.</div>
+      Import und Indikatorberechnung laufen vollständig lokal in Ihrem Browser.
+      Es werden keine Daten an einen Server übermittelt. Die Seite funktioniert auch offline.</div>
     <div id="status"></div>
   </div>
 
   <div class="card" id="resultCard" style="display:none">
     <div class="print-only" id="printHead">
-      <h1 style="font-size:1.3rem;color:var(--blau);margin:0 0 .2rem">CH-IQI Kompass — Unterjährige Auswertung</h1>
+      <h1 style="font-size:1.3rem;color:var(--blau);margin:0 0 .2rem">CH-IQI Kompass: Unterjährige Auswertung</h1>
       <table style="margin:.4rem 0 1rem"><tbody id="printMeta"></tbody></table>
     </div>
-    <button id="btnPdf" title="Druckoptimierten Bericht erzeugen — im Dialog «Als PDF speichern» wählen">&#128196; PDF-Bericht</button>
+    <button id="btnPdf" title="Druckoptimierten Bericht erzeugen. Im Dialog «Als PDF speichern» wählen.">&#128196; PDF-Bericht</button>
     <h2>CH-IQI-Indikatoren <span class="badge" id="metaBadge"></span></h2>
     <table>
       <thead><tr>
@@ -82,13 +82,13 @@
     </table>
     <div class="warnbox">
       <strong>Hinweise zur Interpretation (unterjährige Daten):</strong>
-      Auswertung nur über <em>ausgetretene und codierte</em> Fälle — noch nicht codierte
-      Austritte fehlen (Kodierverzug), was Raten verzerren kann. Kleine kumulierte
+      Die Auswertung umfasst nur <em>ausgetretene und codierte</em> Fälle. Noch nicht
+      codierte Austritte fehlen (Kodierverzug) und können die Raten verzerren. Kleine kumulierte
       Fallzahlen ergeben breite Zufallsstreuung; O/E-Werte sind Hinweise auf
       <em>prüfenswerte</em> Auffälligkeiten, keine Qualitätsurteile.
       Erwartungswerte (E) basieren auf den nationalen BAG-Referenzraten
       <span id="refJahrNote"></span> (Alters-/Geschlechts-Standardisierung, indirekt);
-      Demo mit Spezifikationen v5.2 — die produktive Version wird v5.5 nutzen.
+      Diese Demo verwendet die Spezifikationen v5.2; die produktive Version wird v5.5 nutzen.
     </div>
     <p class="hint" id="importInfo"></p>
   </div>
@@ -126,7 +126,7 @@
   });
 
   function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-  function pct(x) { return x == null ? '—' : (100 * x).toFixed(1) + '%'; }
+  function pct(x) { return x == null ? '–' : (100 * x).toFixed(1) + '%'; }
 
   async function handle(file) {
     statusEl.innerHTML = 'Verarbeite <strong>' + esc(file.name) + '</strong> …';
@@ -137,12 +137,12 @@
       var austritte = res.cases.filter(function (c) { return !c.nochHospitalisiert; }).length;
 
       document.getElementById('indTable').innerHTML = results.map(function (r) {
-        var smr = r.smr == null ? '<span class="smr-na">—</span>'
+        var smr = r.smr == null ? '<span class="smr-na">–</span>'
           : '<span class="' + (r.smr > 1.3 ? 'smr-hoch' : '') + '">' + r.smr.toFixed(2) + '</span>';
         return '<tr><td><strong>' + esc(r.id) + '</strong><br><span class="hint">' + esc(r.label) + '</span></td>' +
           '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
           '<td class="num">' + pct(r.rate) + '</td>' +
-          '<td class="num">' + (r.E == null ? '—' : r.E.toFixed(2)) + '</td>' +
+          '<td class="num">' + (r.E == null ? '–' : r.E.toFixed(2)) + '</td>' +
           '<td class="num">' + smr + '</td></tr>';
       }).join('');
 
@@ -169,9 +169,9 @@
       }
       rows('protoTable', [
         ['Datei', res.meta.importprotokoll.datei],
-        ['SpiGes-Version', res.meta.formatVersion || '—'],
-        ['Unternehmen (ent_id)', res.meta.entId || '—'],
-        ['Standorte (BUR)', res.meta.standorte.join(', ') || '—'],
+        ['SpiGes-Version', res.meta.formatVersion || '–'],
+        ['Unternehmen (ent_id)', res.meta.entId || '–'],
+        ['Standorte (BUR)', res.meta.standorte.join(', ') || '–'],
         ['Fälle / Diagnosen / CHOP', res.meta.counts.faelle + ' / ' + res.meta.counts.diagnosen + ' / ' + res.meta.counts.behandlungen],
         ['Verstorben (gesamt)', sum.verstorben]
       ]);
@@ -183,10 +183,10 @@
 
       // Druckkopf
       var quartale = Object.keys(sum.nachQuartal).sort();
-      var zeitraum = quartale.length ? quartale[0] + (quartale.length > 1 ? ' bis ' + quartale[quartale.length - 1] : '') : '—';
+      var zeitraum = quartale.length ? quartale[0] + (quartale.length > 1 ? ' bis ' + quartale[quartale.length - 1] : '') : '–';
       document.getElementById('printMeta').innerHTML = [
         ['Datenquelle', res.meta.importprotokoll.datei + ' (SpiGes ' + (res.meta.formatVersion || '?') + ')'],
-        ['Unternehmen / Standorte', (res.meta.entId || '—') + ' / ' + (res.meta.standorte.join(', ') || '—')],
+        ['Unternehmen / Standorte', (res.meta.entId || '–') + ' / ' + (res.meta.standorte.join(', ') || '–')],
         ['Auswertungszeitraum (Austritte)', zeitraum],
         ['Fälle', res.meta.counts.faelle + ' (' + austritte + ' Austritte, ' + (res.meta.counts.faelle - austritte) + ' noch hospitalisiert)'],
         ['Bericht erstellt', new Date().toLocaleString('de-CH')],

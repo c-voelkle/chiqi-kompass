@@ -1,4 +1,4 @@
-# CH-IQI Kompass — Deploy-Ordner (GitHub Pages)
+# CH-IQI Kompass: Deploy-Ordner (GitHub Pages)
 
 Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schritte.
 
@@ -6,7 +6,7 @@ Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schrit
 
 | Pfad | Rolle |
 |---|---|
-| `index.html` | **Shell** — Landingpage mit Kopfleiste/Tabs, lädt Unterseiten im Frame. Die kommunizierte URL https://c-voelkle.github.io/chiqi-kompass/ zeigt weiterhin standardmässig das Cockpit. |
+| `index.html` | **Shell**: Landingpage mit Kopfleiste/Tabs, lädt Unterseiten im Frame. Die kommunizierte URL https://c-voelkle.github.io/chiqi-kompass/ zeigt weiterhin standardmässig das Cockpit. |
 | `cockpit.html` | Cockpit QIP 2024 (bisheriger Inhalt der index.html) |
 | `spiges/index.html` | SpiGes-Import-Demo (Beta) + Parser + Testdatei |
 | `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) + Engine |
@@ -17,7 +17,7 @@ Unterseiten funktionieren auch standalone (zeigen dann einen Zurück-Link).
 ## Upload auf github.com (manuell)
 
 1. Falls noch vorhanden: alte `spiges_import_demo.html` im Repo löschen.
-2. **Add file → Upload files**: den gesamten Inhalt dieses Ordners hineinziehen —
+2. **Add file → Upload files**: den gesamten Inhalt dieses Ordners hineinziehen,
    inklusive Unterordner `spiges/` und `chiqi/`. Die bestehende `index.html`
    wird automatisch durch die Shell ersetzt; `cockpit.html` kommt neu dazu.
 3. Commit. Nach 1–2 Minuten ist Pages aktualisiert.

@@ -1,4 +1,4 @@
-// Automatisch generiert von extract_chiqi_sql.py — nicht von Hand editieren.
+// Automatisch generiert von extract_chiqi_sql.py. Nicht von Hand editieren.
 // Quelle: BAG, SQL Strings CH-IQI Version 5.2 - 2020 (QIP20, Stand 30.03.2022)
 window.CHIQI_DEMO = {
  "meta": {
