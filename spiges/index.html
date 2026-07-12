@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CH-IQI Kompass — SpiGes-Import (Demo)</title>
+<script src="spiges_parser.js"></script>
+<style>
+  :root { --blau:#1c4e80; --hell:#f4f7fa; --rand:#d5dee8; --gruen:#2e7d32; --rot:#b71c1c; --orange:#e65100; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; margin:0; background:var(--hell); color:#1a2733; }
+  header { background:var(--blau); color:#fff; padding:1rem 1.5rem; }
+  header h1 { margin:0; font-size:1.25rem; font-weight:600; }
+  header p { margin:.25rem 0 0; font-size:.85rem; opacity:.85; }
+  main { max-width:960px; margin:1.5rem auto; padding:0 1rem; }
+  .card { background:#fff; border:1px solid var(--rand); border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1.25rem; }
+  #drop { border:2px dashed var(--blau); border-radius:8px; padding:2.5rem; text-align:center; cursor:pointer; transition:background .15s; }
+  #drop.hover { background:#e8f0f8; }
+  #drop strong { color:var(--blau); }
+  .privacy { font-size:.85rem; color:#3e5165; background:#eef6ee; border:1px solid #cde3cd; border-radius:6px; padding:.6rem .9rem; margin-top: .75rem;}
+  table { border-collapse:collapse; width:100%; font-size:.9rem; }
+  th, td { text-align:left; padding:.35rem .6rem; border-bottom:1px solid var(--rand); }
+  th { background:var(--hell); font-weight:600; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .kpis { display:flex; flex-wrap:wrap; gap:1rem; margin:.5rem 0 1rem; }
+  .kpi { flex:1 1 130px; background:var(--hell); border:1px solid var(--rand); border-radius:8px; padding:.7rem .9rem; }
+  .kpi .v { font-size:1.5rem; font-weight:700; color:var(--blau); }
+  .kpi .l { font-size:.78rem; color:#51677d; }
+  .warn { color:var(--orange); font-size:.85rem; }
+  .err { color:var(--rot); }
+  .ok { color:var(--gruen); }
+  #status { font-size:.9rem; margin-top:.6rem; }
+  .hint { font-size:.8rem; color:#6a7f94; }
+  h2 { font-size:1.05rem; color:var(--blau); margin-top:0; }
+</style>
+</head>
+<body>
+<nav style="background:#0d1f38;color:#fff;font-size:13px;padding:.45rem 1.5rem;display:flex;gap:1.2rem;flex-wrap:wrap;align-items:center">
+  <span style="opacity:.6">CH-IQI Kompass</span>
+  <a href="../" style="color:#cfe0f5;text-decoration:none">Cockpit (QIP 2024)</a>
+  <a href="./" style="color:#ffd766;text-decoration:none">SpiGes-Import <sup style="opacity:.7">Beta</sup></a>
+  <a href="../chiqi/" style="color:#cfe0f5;text-decoration:none">Unterjährige Auswertung <sup style="opacity:.7">Beta</sup></a>
+</nav>
+<header>
+  <h1>CH-IQI Kompass — SpiGes-Import <small>(Machbarkeits-Demo)</small></h1>
+  <p>Unterjährige Auswertung eigener Falldaten · SpiGes XML Format 1.4 / 1.5</p>
+</header>
+<main>
+  <div class="card">
+    <div id="drop">
+      <strong>SpiGes-Daten-File (XML) hier ablegen</strong> oder klicken zum Auswählen<br>
+      <span class="hint">Nur das Daten-File — das Identifikatoren-File (AHV-Nr.) wird nicht benötigt und nicht gelesen.<br>
+      ZIP-Dateien bitte vorher entpacken.</span>
+      <input type="file" id="fileInput" accept=".xml" hidden>
+    </div>
+    <div class="privacy">🔒 <strong>Die Daten verlassen Ihren Computer nicht.</strong>
+      Die Verarbeitung erfolgt vollständig lokal in Ihrem Browser — es findet keine Übermittlung
+      an einen Server statt. Diese Seite funktioniert auch ohne Internetverbindung.</div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>Importprotokoll</h2>
+    <table id="protoTable"></table>
+    <div id="warnings"></div>
+  </div>
+
+  <div class="card" id="summaryCard" style="display:none">
+    <h2>Zusammenfassung der Fälle</h2>
+    <div class="kpis" id="kpis"></div>
+    <h2>Austritte nach Quartal</h2>
+    <table id="quartalTable"></table>
+    <h2>Häufigste Hauptdiagnosen (ICD-3-Steller)</h2>
+    <table id="hdTable"></table>
+    <p class="hint">Nächster Schritt (Ausbaustufe): Zuordnung der Fälle zu CH-IQI-Indikatoren
+      gemäss Definitionshandbuch und Vergleich mit der Baseline aus den BAG-Publikationsdaten.</p>
+  </div>
+</main>
+<script>
+(function () {
+  var drop = document.getElementById('drop');
+  var input = document.getElementById('fileInput');
+  var statusEl = document.getElementById('status');
+
+  drop.addEventListener('click', function () { input.click(); });
+  input.addEventListener('change', function () { if (input.files[0]) handle(input.files[0]); });
+  ['dragover', 'dragenter'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('hover'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('hover'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
+  });
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  function rows(t, data) {
+    document.getElementById(t).innerHTML = data.map(function (r) {
+      return '<tr>' + r.map(function (c, i) {
+        return (i === 0 ? '<th>' : '<td class="num">') + esc(c) + (i === 0 ? '</th>' : '</td>');
+      }).join('') + '</tr>';
+    }).join('');
+  }
+
+  async function handle(file) {
+    statusEl.innerHTML = 'Lese <strong>' + esc(file.name) + '</strong> (' +
+      (file.size / 1e6).toFixed(1) + ' MB) …';
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'none';
+    try {
+      var res = await SpiGesParser.parseSpiGes(file, { fileName: file.name });
+      var s = SpiGesParser.summarizeCases(res.cases);
+      statusEl.innerHTML = '<span class="ok">✔ Import erfolgreich (' +
+        res.meta.importprotokoll.dauerMs + ' ms)</span>';
+
+      rows('protoTable', [
+        ['Datei', res.meta.importprotokoll.datei],
+        ['Grösse', (res.meta.importprotokoll.groesseBytes / 1e6).toFixed(1) + ' MB'],
+        ['Importdatum', res.meta.importprotokoll.importDatum],
+        ['SpiGes-Formatversion', res.meta.formatVersion || '—'],
+        ['Unternehmen (ent_id)', res.meta.entId || '—'],
+        ['Standorte (BUR)', res.meta.standorte.join(', ') || '—'],
+        ['Fälle', res.meta.counts.faelle],
+        ['Diagnosen', res.meta.counts.diagnosen],
+        ['Behandlungen (CHOP)', res.meta.counts.behandlungen],
+        ['Parser-Version', res.meta.parserVersion]
+      ]);
+      document.getElementById('warnings').innerHTML = res.meta.warnings.length
+        ? '<p class="warn">⚠ ' + res.meta.warnings.map(esc).join('<br>⚠ ') + '</p>' : '';
+      document.getElementById('resultCard').style.display = '';
+
+      document.getElementById('kpis').innerHTML = [
+        [s.faelle, 'Fälle total'],
+        [s.austritte, 'Austritte'],
+        [s.nochHospitalisiert, 'noch hospitalisiert'],
+        [s.verstorben, 'verstorben'],
+        [s.faelleMitChop, 'Fälle mit CHOP']
+      ].map(function (k) {
+        return '<div class="kpi"><div class="v">' + k[0] + '</div><div class="l">' + k[1] + '</div></div>';
+      }).join('');
+
+      rows('quartalTable', Object.keys(s.nachQuartal).sort().map(function (q) {
+        return [q, s.nachQuartal[q]];
+      }));
+      rows('hdTable', s.topHauptdiagnosen.map(function (h) { return [h.icd3, h.n]; }));
+      document.getElementById('summaryCard').style.display = '';
+    } catch (e) {
+      statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
+    }
+  }
+})();
+</script>
+</body>
+</html>

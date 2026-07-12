@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CH-IQI Kompass — Unterjährige Indikator-Auswertung (Machbarkeits-Demo)</title>
+<script src="spiges_parser.js"></script>
+<script src="chiqi_engine.js"></script>
+<script src="chiqi_demo_defs.js"></script>
+<style>
+  :root { --blau:#1c4e80; --hell:#f4f7fa; --rand:#d5dee8; --gruen:#2e7d32; --rot:#b71c1c; --orange:#e65100; }
+  * { box-sizing:border-box; }
+  body { font-family:"Segoe UI",system-ui,sans-serif; margin:0; background:var(--hell); color:#1a2733; }
+  header { background:var(--blau); color:#fff; padding:1rem 1.5rem; }
+  header h1 { margin:0; font-size:1.2rem; font-weight:600; }
+  header p { margin:.25rem 0 0; font-size:.85rem; opacity:.85; }
+  main { max-width:1000px; margin:1.5rem auto; padding:0 1rem; }
+  .card { background:#fff; border:1px solid var(--rand); border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1.25rem; }
+  #drop { border:2px dashed var(--blau); border-radius:8px; padding:2rem; text-align:center; cursor:pointer; }
+  #drop.hover { background:#e8f0f8; }
+  #drop strong { color:var(--blau); }
+  .privacy { font-size:.85rem; color:#3e5165; background:#eef6ee; border:1px solid #cde3cd; border-radius:6px; padding:.6rem .9rem; margin-top:.75rem; }
+  table { border-collapse:collapse; width:100%; font-size:.9rem; }
+  th,td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--rand); vertical-align:top; }
+  th { background:var(--hell); font-weight:600; }
+  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .hint { font-size:.8rem; color:#6a7f94; }
+  .warnbox { font-size:.85rem; color:#7a4a00; background:#fff7e6; border:1px solid #ffe0a3; border-radius:6px; padding:.6rem .9rem; margin-top:1rem; }
+  h2 { font-size:1.05rem; color:var(--blau); margin-top:0; }
+  .smr-hoch { color:var(--orange); font-weight:600; }
+  .smr-na { color:#8a9aab; }
+  #status { font-size:.9rem; margin-top:.6rem; }
+  .ok { color:var(--gruen); } .err { color:var(--rot); }
+  .badge { display:inline-block; font-size:.72rem; background:var(--hell); border:1px solid var(--rand); border-radius:4px; padding:.1rem .45rem; margin-left:.4rem; color:#51677d; }
+</style>
+</head>
+<body>
+<nav style="background:#0d1f38;color:#fff;font-size:13px;padding:.45rem 1.5rem;display:flex;gap:1.2rem;flex-wrap:wrap;align-items:center">
+  <span style="opacity:.6">CH-IQI Kompass</span>
+  <a href="../" style="color:#cfe0f5;text-decoration:none">Cockpit (QIP 2024)</a>
+  <a href="../spiges/" style="color:#cfe0f5;text-decoration:none">SpiGes-Import <sup style="opacity:.7">Beta</sup></a>
+  <a href="./" style="color:#ffd766;text-decoration:none">Unterjährige Auswertung <sup style="opacity:.7">Beta</sup></a>
+</nav>
+<header>
+  <h1>CH-IQI Kompass — Unterjährige Indikator-Auswertung <small>(Machbarkeits-Demo)</small></h1>
+  <p>SpiGes-Import → CH-IQI-Berechnung im Browser · Demo-Set: 3 Mortalitätsindikatoren · Spezifikationen v5.2 (BAG)</p>
+</header>
+<main>
+  <div class="card">
+    <div id="drop">
+      <strong>SpiGes-Daten-File (XML) hier ablegen</strong> oder klicken zum Auswählen
+      <div class="hint">z.&nbsp;B. alle bereits codierten Fälle des laufenden Jahres</div>
+      <input type="file" id="fileInput" accept=".xml" hidden>
+    </div>
+    <div class="privacy">🔒 <strong>Die Daten verlassen Ihren Computer nicht.</strong>
+      Import und Indikatorberechnung laufen vollständig lokal in Ihrem Browser —
+      keine Übermittlung an einen Server, funktioniert auch offline.</div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>CH-IQI-Indikatoren <span class="badge" id="metaBadge"></span></h2>
+    <table>
+      <thead><tr>
+        <th>Indikator</th><th class="num">Fälle (n)</th><th class="num">Todesfälle (O)</th>
+        <th class="num">Rate</th><th class="num">Erwartet (E)</th><th class="num">O/E (SMR)</th>
+      </tr></thead>
+      <tbody id="indTable"></tbody>
+    </table>
+    <div class="warnbox">
+      <strong>Hinweise zur Interpretation (unterjährige Daten):</strong>
+      Auswertung nur über <em>ausgetretene und codierte</em> Fälle — noch nicht codierte
+      Austritte fehlen (Kodierverzug), was Raten verzerren kann. Kleine kumulierte
+      Fallzahlen ergeben breite Zufallsstreuung; O/E-Werte sind Hinweise auf
+      <em>prüfenswerte</em> Auffälligkeiten, keine Qualitätsurteile.
+      Erwartungswerte (E) basieren auf den nationalen BAG-Referenzraten
+      <span id="refJahrNote"></span> (Alters-/Geschlechts-Standardisierung, indirekt);
+      Demo mit Spezifikationen v5.2 — die produktive Version wird v5.5 nutzen.
+    </div>
+    <p class="hint" id="importInfo"></p>
+  </div>
+</main>
+<script>
+(function () {
+  var drop = document.getElementById('drop');
+  var input = document.getElementById('fileInput');
+  var statusEl = document.getElementById('status');
+
+  drop.addEventListener('click', function () { input.click(); });
+  input.addEventListener('change', function () { if (input.files[0]) handle(input.files[0]); });
+  ['dragover','dragenter'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('hover'); });
+  });
+  ['dragleave','drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('hover'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
+  });
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  function pct(x) { return x == null ? '—' : (100 * x).toFixed(1) + '%'; }
+
+  async function handle(file) {
+    statusEl.innerHTML = 'Verarbeite <strong>' + esc(file.name) + '</strong> …';
+    document.getElementById('resultCard').style.display = 'none';
+    try {
+      var res = await SpiGesParser.parseSpiGes(file, { fileName: file.name });
+      var results = ChiqiEngine.computeAll(res.cases, CHIQI_DEMO.indicators);
+      var austritte = res.cases.filter(function (c) { return !c.nochHospitalisiert; }).length;
+
+      document.getElementById('indTable').innerHTML = results.map(function (r) {
+        var smr = r.smr == null ? '<span class="smr-na">—</span>'
+          : '<span class="' + (r.smr > 1.3 ? 'smr-hoch' : '') + '">' + r.smr.toFixed(2) + '</span>';
+        return '<tr><td><strong>' + esc(r.id) + '</strong><br><span class="hint">' + esc(r.label) + '</span></td>' +
+          '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
+          '<td class="num">' + pct(r.rate) + '</td>' +
+          '<td class="num">' + (r.E == null ? '—' : r.E.toFixed(2)) + '</td>' +
+          '<td class="num">' + smr + '</td></tr>';
+      }).join('');
+
+      document.getElementById('metaBadge').textContent =
+        'Engine v' + ChiqiEngine.ENGINE_VERSION + ' · Spez. v' + CHIQI_DEMO.meta.chiqiVersion;
+      document.getElementById('refJahrNote').textContent =
+        '(Referenzjahr ' + CHIQI_DEMO.indicators[0].refJahr + ')';
+      document.getElementById('importInfo').textContent =
+        'Import: ' + res.meta.counts.faelle + ' Fälle (' + austritte + ' Austritte, ' +
+        (res.meta.counts.faelle - austritte) + ' noch hospitalisiert) · ' +
+        res.meta.counts.diagnosen + ' Diagnosen · ' + res.meta.counts.behandlungen +
+        ' Behandlungen · SpiGes ' + (res.meta.formatVersion || '?') +
+        ' · Verarbeitung ' + res.meta.importprotokoll.dauerMs + ' ms' +
+        (res.meta.warnings.length ? ' · ⚠ ' + res.meta.warnings.length + ' Warnung(en)' : '');
+      statusEl.innerHTML = '<span class="ok">✔ Auswertung abgeschlossen</span>';
+      document.getElementById('resultCard').style.display = '';
+    } catch (e) {
+      statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
+    }
+  }
+})();
+</script>
+</body>
+</html>
