@@ -9,11 +9,24 @@
  * NICHT von Hand übersetzt, sondern per Build-Skript (extract_chiqi_sql.py)
  * aus der BAG-Datei extrahiert und hier 1:1 ausgewertet.
  * Unterstützte Konstrukte: LEFT(x,n), InStr(x,y), IN (...), BETWEEN,
- * IS NULL, =, <>, <, >, <=, >=, AND, OR, NOT, Klammern.
+ * IS NULL, =, <>, <, >, <=, >=, AND, OR, NOT, Klammern; nacktes
+ * InStr(x,y) als boolesches Prädikat (v5.5, implizit >0).
+ * Laufzeit-Codelisten (v5.5): compile(sql, lists) bindet R-Listennamen aus
+ * der BAG-Datei - InStr(col, ListName), nackter ListName als Prädikat
+ * (Suche in AllBeh) sowie SelGENOR/SelGENORA308 jahresabhängig über die
+ * genor_JJJJ-Listen (Auswahl per Austrittsjahr, Fallback: neueste Liste).
  *
  * Erwartungswerte: indirekte Standardisierung nach Alter (5er-Gruppen)
  * und Geschlecht mit den offiziellen BAG-Referenzdaten (pCH pro Stratum):
  *   E = Σ über Nenner-Fälle: pCH(AltEGrp, Sex)
+ *
+ * Differenzierte Risikomodelle (v5.5, 5 Indikatoren): logistische
+ * Regression mit den offiziellen BAG-Koeffizienten (glm_riskAdj_v55.json):
+ *   p = 1/(1+exp(-(b0 + Σ bi*xi))), E = Σ p über Nenner-Fälle.
+ * Terme: Alter (kontinuierlich), weibliches Geschlecht (Sex=2), Zuverlegung
+ * (AVor=6), Komorbiditäten via str_detect auf HD/NebDia/AllDia/AllBeh.
+ * Gemäss BAG-FAQ V5.5 (S.16) ersetzen diese Modelle die reine
+ * Alter/Geschlecht-Adjustierung für die betroffenen Indikatoren.
  *
  * Lizenz: MIT (Bestandteil von CH-IQI Kompass)
  */
@@ -23,7 +36,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var ENGINE_VERSION = '0.1.0';
+  var ENGINE_VERSION = '0.5.0';
 
   // ------------------------------------------------------ SQL-Mini-Parser --
 
@@ -59,7 +72,12 @@
   }
 
   // Rekursiver Abstieg: orExpr -> andExpr -> notExpr -> predicate
-  function Parser(tokens) { this.toks = tokens; this.p = 0; }
+  function Parser(tokens, lists) { this.toks = tokens; this.p = 0; this.lists = lists || null; }
+  Parser.prototype.knownList = function (name) {
+    if (!this.lists) return false;
+    if (name === 'SelGENOR' || name === 'SelGENORA308') return true;
+    return listCandidates(name).some(function (k) { return this.lists[k] !== undefined; }, this);
+  };
   Parser.prototype.peek = function () { return this.toks[this.p]; };
   Parser.prototype.next = function () { return this.toks[this.p++]; };
   Parser.prototype.expect = function (t, v) {
@@ -70,6 +88,7 @@
   };
 
   Parser.prototype.parse = function () {
+    if (!this.toks.length) throw new Error('Leere Definition');
     var e = this.orExpr();
     if (this.p < this.toks.length) throw new Error('Überzählige Tokens ab ' + JSON.stringify(this.peek()));
     return e;
@@ -111,8 +130,16 @@
         }
         if (lower === 'instr') {
           var col2 = this.expect('id').v; this.expect('op', ',');
-          var pat = this.expect('str').v; this.expect('op', ')');
-          return { k: 'instr', col: col2, pat: pat };
+          var arg = this.next();
+          if (arg && arg.t === 'str') {
+            this.expect('op', ')');
+            return { k: 'instr', col: col2, pat: arg.v };
+          }
+          if (arg && arg.t === 'id' && this.knownList(arg.v)) {
+            this.expect('op', ')');
+            return { k: 'instrList', col: col2, name: arg.v };
+          }
+          throw new Error('InStr: unbekannte Liste/Argument ' + JSON.stringify(arg));
         }
         throw new Error('Unbekannte Funktion: ' + name);
       }
@@ -134,7 +161,17 @@
     }
     var left = this.value();
     var tok = this.peek();
-    if (!tok) throw new Error('Prädikat unvollständig');
+    // v5.5: nacktes InStr(...) als boolesches Prädikat (implizit >0);
+    // nackter Listen-Name als Prädikat = Suche in AllBeh
+    var instrBool = { k: 'cmp', op: '>', a: left, b: { k: 'num', v: 0 } };
+    var bareList = left.k === 'col' && this.knownList(left.name)
+      ? { k: 'cmp', op: '>', a: { k: 'instrList', col: 'AllBeh', name: left.name }, b: { k: 'num', v: 0 } }
+      : null;
+    if (!tok) {
+      if (left.k === 'instr' || left.k === 'instrList') return instrBool;
+      if (bareList) return bareList;
+      throw new Error('Prädikat unvollständig');
+    }
     if (tok.t === 'kw' && tok.v === 'IS') {
       this.next();
       var neg = false;
@@ -171,15 +208,80 @@
       this.next();
       return { k: 'cmp', op: tok.v, a: left, b: this.value() };
     }
+    if (left.k === 'instr' || left.k === 'instrList') return instrBool; // z.B. (InStr(AllDia,'J80')) AND …
+    if (bareList) return bareList;               // z.B. (TransfusionenKomplikB) AND …
     throw new Error('Unerwartetes Prädikat-Token: ' + JSON.stringify(tok));
   };
 
-  function compile(sql) {
-    var ast = new Parser(tokenize(sql)).parse();
-    return function (row) { return evalNode(ast, row); };
+  function listCandidates(name) {
+    var c = [name, name + '_leer_pipe', name + '_pipe', name + '_leer'];
+    if (/_leer$/.test(name)) c.push(name.replace(/_leer$/, ''));
+    return c;
   }
 
-  function evalValue(node, row) {
+  // Liste als Array normalisieren (Pipe-String oder Array); null wenn unbekannt
+  function lookupList(lists, name) {
+    var cand = listCandidates(name);
+    for (var i = 0; i < cand.length; i++) {
+      var v = lists[cand[i]];
+      if (v === undefined) continue;
+      return typeof v === 'string' ? v.split('|') : v;
+    }
+    return null;
+  }
+
+  // SelGENOR/SelGENORA308: jahresabhängige GENOR-Liste (BAG: genor_JJJJ).
+  // Fallback: neueste verfügbare Liste <= Jahr, sonst neueste überhaupt
+  // (unterjährige Daten neuer Jahre).
+  function resolveList(lists, name, jahr) {
+    if (name !== 'SelGENOR' && name !== 'SelGENORA308') return lookupList(lists, name);
+    var base = name === 'SelGENOR' ? 'genor' : 'genorA308';
+    var years = [];
+    for (var k in lists) {
+      var m = new RegExp('^' + base + '_(\\d{4})(_leer(_pipe)?|_pipe)?$').exec(k);
+      if (m) years.push(parseInt(m[1], 10));
+    }
+    if (!years.length) return null;
+    years.sort(function (a, b) { return a - b; });
+    var pick = null;
+    for (var i = 0; i < years.length; i++) { if (jahr != null && years[i] <= jahr) pick = years[i]; }
+    if (pick === null) pick = years[years.length - 1];
+    return lookupList(lists, base + '_' + pick);
+  }
+
+  function matchList(ctx, colName, name, row) {
+    var s = row[colName];
+    if (s == null) return false;
+    s = String(s);
+    var jahr = row.Jahr != null ? Number(row.Jahr) : null;
+    var key = name + '|' + jahr;
+    var arr = ctx.cache[key];
+    if (arr === undefined) {
+      var raw = resolveList(ctx.lists, name, jahr);
+      arr = null;
+      if (raw) {
+        arr = raw.map(function (e) {
+          e = String(e);
+          if (colName === 'AllBeh') return e.charAt(0) === ' ' ? e : ' ' + e;
+          return e.charAt(0) === ' ' ? e.slice(1) : e;
+        });
+      }
+      ctx.cache[key] = arr;
+    }
+    if (!arr) throw new Error('Laufzeitliste nicht auflösbar: ' + name);
+    for (var i = 0; i < arr.length; i++) {
+      if (s.indexOf(arr[i]) !== -1) return true;
+    }
+    return false;
+  }
+
+  function compile(sql, lists) {
+    var ast = new Parser(tokenize(sql), lists).parse();
+    var ctx = { lists: lists || {}, cache: {} };
+    return function (row) { return evalNode(ast, row, ctx); };
+  }
+
+  function evalValue(node, row, ctx) {
     switch (node.k) {
       case 'num': return node.v;
       case 'str': return node.v;
@@ -195,20 +297,22 @@
         var s2 = row[node.col];
         return s2 == null ? 0 : String(s2).indexOf(node.pat) + 1;  // 1-basiert, 0 = nicht gefunden
       }
+      case 'instrList':
+        return matchList(ctx, node.col, node.name, row) ? 1 : 0;
     }
     throw new Error('evalValue: ' + node.k);
   }
 
   // SQL-Semantik: Vergleich mit NULL -> false (vereinfachte 3-wertige Logik)
-  function evalNode(node, row) {
+  function evalNode(node, row, ctx) {
     switch (node.k) {
-      case 'and': return evalNode(node.a, row) && evalNode(node.b, row);
-      case 'or': return evalNode(node.a, row) || evalNode(node.b, row);
-      case 'not': return !evalNode(node.a, row);
-      case 'isnull': return evalValue(node.a, row) == null;
-      case 'notnull': return evalValue(node.a, row) != null;
+      case 'and': return evalNode(node.a, row, ctx) && evalNode(node.b, row, ctx);
+      case 'or': return evalNode(node.a, row, ctx) || evalNode(node.b, row, ctx);
+      case 'not': return !evalNode(node.a, row, ctx);
+      case 'isnull': return evalValue(node.a, row, ctx) == null;
+      case 'notnull': return evalValue(node.a, row, ctx) != null;
       case 'in': {
-        var v = evalValue(node.a, row);
+        var v = evalValue(node.a, row, ctx);
         if (v == null) return false;
         for (var i = 0; i < node.list.length; i++) {
           if (String(v) === String(node.list[i])) return true;
@@ -216,12 +320,12 @@
         return false;
       }
       case 'between': {
-        var x = evalValue(node.a, row);
+        var x = evalValue(node.a, row, ctx);
         if (x == null) return false;
-        return x >= evalValue(node.lo, row) && x <= evalValue(node.hi, row);
+        return x >= evalValue(node.lo, row, ctx) && x <= evalValue(node.hi, row, ctx);
       }
       case 'cmp': {
-        var a = evalValue(node.a, row), b = evalValue(node.b, row);
+        var a = evalValue(node.a, row, ctx), b = evalValue(node.b, row, ctx);
         if (a == null || b == null) return false;
         if (typeof a === 'number' || typeof b === 'number') { a = Number(a); b = Number(b); }
         switch (node.op) {
@@ -267,13 +371,343 @@
       StdIPS: c.aufenthaltIpsStunden,
       Sex: c.geschlecht === 'M' ? 1 : c.geschlecht === 'F' ? 2 : null,
       Jahr: c.austrittsjahr,
+      // SpiGes-nativ: VitStat 0=lebend, 1=verstorben (v5.5-Definitionen).
+      // VitalStat (invertiert, 1=lebend) nur für die *_23-Definitionen
+      // der Datenjahre bis 2023.
+      VitStat: c.neugeborene && c.neugeborene.vitalstatus != null
+               ? parseInt(c.neugeborene.vitalstatus, 10) : null,
       VitalStat: c.neugeborene && c.neugeborene.vitalstatus != null
-                 ? parseInt(c.neugeborene.vitalstatus, 10) : null,
+                 ? (parseInt(c.neugeborene.vitalstatus, 10) === 0 ? 1 : 0) : null,
       GebGew: c.neugeborene && c.neugeborene.geburtsgewicht != null
               ? parseInt(c.neugeborene.geburtsgewicht, 10) : null,
       AufGew: c._admin && c._admin.aufnahmegewicht != null
               ? parseInt(c._admin.aufnahmegewicht, 10) : null
     };
+  }
+
+  // ------------------------------------- GLM (differenzierte Risikomodelle) --
+
+  // Übersetzt einen Koeffizienten-Term in eine Funktion row -> x_i.
+  // Rückgabe null = Merkmal nicht bestimmbar (fehlendes Alter/Geschlecht).
+  function compileGlmTerm(term) {
+    if (term.term === '(Intercept)') return function () { return 1; };
+    var spec = term.spec || '';
+    if (spec.indexOf('s_alte') !== -1)
+      return function (row) { return row.AltE == null ? null : Number(row.AltE); };
+    if (spec.indexOf('s_sex') !== -1)
+      return function (row) { return row.Sex == null ? null : (Number(row.Sex) === 2 ? 1 : 0); };
+    if (spec.indexOf('s_avor') !== -1)
+      return function (row) { return Number(row.AVor) === 6 ? 1 : 0; };
+    var m = /^str_detect\((HD|NebDia|AllDia|AllBeh)\s*,\s*'([^']*)'\)$/.exec(spec.trim());
+    if (m) {
+      var col = m[1];
+      var pats = m[2].split('|').map(function (e) {
+        if (col === 'AllBeh') return e.charAt(0) === ' ' ? e : ' ' + e;
+        return e;
+      });
+      return function (row) {
+        var s = row[col];
+        if (s == null) return 0;
+        s = String(s);
+        for (var i = 0; i < pats.length; i++) if (s.indexOf(pats[i]) !== -1) return 1;
+        return 0;
+      };
+    }
+    throw new Error('GLM-Term nicht unterstützt: ' + term.term + ' / ' + spec);
+  }
+
+  // glmYears: { '2022': [terme], '2023': [...], ... } (glm_riskAdj_v55.json)
+  // Jahreswahl: exakt, sonst neuestes Jahr <= Falljahr, sonst neuestes.
+  function compileGlm(glmYears) {
+    var models = {};
+    var years = Object.keys(glmYears).map(Number).sort(function (a, b) { return a - b; });
+    years.forEach(function (y) {
+      models[y] = glmYears[y].map(function (t) {
+        return { est: Number(t.estimate), f: compileGlmTerm(t) };
+      });
+    });
+    function pickYear(jahr) {
+      var pick = null;
+      for (var i = 0; i < years.length; i++) if (jahr != null && years[i] <= jahr) pick = years[i];
+      return pick === null ? years[years.length - 1] : pick;
+    }
+    return function (row) {
+      var terms = models[pickYear(row.Jahr != null ? Number(row.Jahr) : null)];
+      var lp = 0;
+      for (var i = 0; i < terms.length; i++) {
+        var x = terms[i].f(row);
+        if (x == null) return null;                    // Merkmal fehlt -> kein p
+        lp += terms[i].est * x;
+      }
+      return 1 / (1 + Math.exp(-lp));
+    };
+  }
+
+  // ------------------------------------------ fCHIQI-Evaluator (R-Dialekt) --
+  // Unterstützt: str_detect(col, 'a|b'|Listenname), is.na(col), ==, !=, <,
+  // >, <=, >=, %between% c(lo,hi), %in%/%notin% c(...), &, |, !, Klammern.
+  // Dreiwertige Logik wie R (NA); ein NA-Gesamtergebnis zählt als false
+  // (dplyr/data.table-Filtersemantik). Muster werden als Substrings
+  // interpretiert (BAG nutzt nur Alternationen von Codes).
+
+  function tokenizeR(s) {
+    var toks = [], i = 0, n = s.length;
+    while (i < n) {
+      var c = s[i];
+      if (c === ' ' || c === '\t') { i++; continue; }
+      if (c === "'") {
+        var j = s.indexOf("'", i + 1);
+        if (j === -1) throw new Error('Unbeendetes String-Literal: ' + s.slice(i, i + 30));
+        toks.push({ t: 'str', v: s.slice(i + 1, j) }); i = j + 1; continue;
+      }
+      if (c >= '0' && c <= '9') {
+        var m = /^\d+(\.\d+)?/.exec(s.slice(i));
+        toks.push({ t: 'num', v: parseFloat(m[0]) }); i += m[0].length; continue;
+      }
+      if (/[A-Za-z_.]/.test(c)) {
+        var w = /^[A-Za-z_.][A-Za-z0-9_.]*/.exec(s.slice(i))[0];
+        toks.push({ t: 'id', v: w }); i += w.length; continue;
+      }
+      if (c === '%') {
+        var mm = /^%[a-z]+%/.exec(s.slice(i));
+        if (!mm) throw new Error('Unbekannter %-Operator: ' + s.slice(i, i + 12));
+        toks.push({ t: 'op', v: mm[0] }); i += mm[0].length; continue;
+      }
+      if ((c === '=' || c === '!' || c === '<' || c === '>') && s[i + 1] === '=') {
+        toks.push({ t: 'op', v: c + '=' }); i += 2; continue;
+      }
+      if ('!<>&|(),$'.indexOf(c) !== -1) { toks.push({ t: 'op', v: c }); i++; continue; }
+      throw new Error('Unerwartetes Zeichen "' + c + '" in Filter: …' + s.slice(Math.max(0, i - 20), i + 10) + '…');
+    }
+    return toks;
+  }
+
+  function RParser(toks, ctx) { this.toks = toks; this.p = 0; this.ctx = ctx; this.lists = ctx.lists; }
+  RParser.prototype.peek = function () { return this.toks[this.p]; };
+  RParser.prototype.next = function () { return this.toks[this.p++]; };
+  RParser.prototype.expect = function (t, v) {
+    var tok = this.next();
+    if (!tok || tok.t !== t || (v !== undefined && tok.v !== v))
+      throw new Error('Filter: erwartet ' + (v || t) + ', erhalten ' + JSON.stringify(tok));
+    return tok;
+  };
+  RParser.prototype.parse = function () {
+    if (!this.toks.length) throw new Error('Leere Filterdefinition');
+    var e = this.orExpr();
+    if (this.p < this.toks.length) throw new Error('Filter: überzählige Tokens ab ' + JSON.stringify(this.peek()));
+    return e;
+  };
+  RParser.prototype.orExpr = function () {
+    var l = this.andExpr();
+    while (this.peek() && this.peek().t === 'op' && this.peek().v === '|') {
+      this.next(); l = { k: 'ror', a: l, b: this.andExpr() };
+    }
+    return l;
+  };
+  RParser.prototype.andExpr = function () {
+    var l = this.notExpr();
+    while (this.peek() && this.peek().t === 'op' && this.peek().v === '&') {
+      this.next(); l = { k: 'rand', a: l, b: this.notExpr() };
+    }
+    return l;
+  };
+  RParser.prototype.notExpr = function () {
+    if (this.peek() && this.peek().t === 'op' && this.peek().v === '!') {
+      this.next(); return { k: 'rnot', a: this.notExpr() };
+    }
+    return this.cmpExpr();
+  };
+  RParser.prototype.cVec = function () {
+    this.expect('id', 'c'); this.expect('op', '(');
+    var list = [];
+    for (;;) {
+      var el = this.next();
+      if (!el || (el.t !== 'str' && el.t !== 'num')) throw new Error('c(): ' + JSON.stringify(el));
+      list.push(el.v);
+      var sep = this.next();
+      if (sep && sep.v === ')') break;
+      if (!sep || sep.v !== ',') throw new Error('c(): erwartet , oder )');
+    }
+    return list;
+  };
+  RParser.prototype.cmpExpr = function () {
+    var left = this.primary();
+    var tok = this.peek();
+    if (tok && tok.t === 'op' && ['==', '!=', '<', '>', '<=', '>='].indexOf(tok.v) !== -1) {
+      this.next();
+      return { k: 'rcmp', op: tok.v, a: left, b: this.primary() };
+    }
+    if (tok && tok.t === 'op' && tok.v === '%between%') {
+      this.next(); var lohi = this.cVec();
+      if (lohi.length !== 2) throw new Error('%between% braucht c(lo,hi)');
+      return { k: 'rbetween', a: left, lo: lohi[0], hi: lohi[1] };
+    }
+    if (tok && tok.t === 'op' && (tok.v === '%in%' || tok.v === '%notin%')) {
+      var op = this.next().v;
+      var nx = this.peek();
+      if (nx && nx.t === 'id' && nx.v === 'c') {
+        return { k: op === '%in%' ? 'rin' : 'rnotin', a: left, list: this.cVec() };
+      }
+      // JID %in% SelGENOR_JID: Fall gehört zur jahresspezifischen
+      // GENOR-Auswahl (äquivalent zu str_detect(AllBeh, genor_JJJJ))
+      if (nx && nx.t === 'id' && /^SelGENOR(A308)?_JID$/.test(nx.v) &&
+          left.k === 'col' && left.name === 'JID') {
+        this.next();
+        return { k: 'rgenor', neg: op === '%notin%',
+                 base: nx.v.indexOf('A308') !== -1 ? 'SelGENORA308' : 'SelGENOR' };
+      }
+      // JID %in% CHIQI_<Name>_JID: Fall erfüllt den referenzierten Filter
+      // (die JID-Menge ist in der BAG-Auswertung genau die Menge der Fälle,
+      // die den Filter <Name> erfüllen)
+      var mref = nx && nx.t === 'id' ? /^CHIQI_([A-Za-z0-9_]+)_JID$/.exec(nx.v) : null;
+      if (mref && left.k === 'col' && left.name === 'JID' &&
+          this.ctx.filters && this.ctx.filters[mref[1]] != null) {
+        this.next();
+        return { k: 'rref', ref: mref[1], neg: op === '%notin%' };
+      }
+      throw new Error('Filter: %in% auf Nicht-Vektor (Data-Frame-Konstrukt?) nicht unterstützt');
+    }
+    return left;                                       // boolescher Ausdruck (str_detect etc.)
+  };
+  RParser.prototype.primary = function () {
+    var tok = this.next();
+    if (!tok) throw new Error('Filter: Ausdruck unvollständig');
+    if (tok.t === 'op' && tok.v === '(') {
+      var e = this.orExpr(); this.expect('op', ')');
+      return e;
+    }
+    if (tok.t === 'num') return { k: 'num', v: tok.v };
+    if (tok.t === 'str') return { k: 'str', v: tok.v };
+    if (tok.t === 'id') {
+      var name = tok.v;
+      if (this.peek() && this.peek().t === 'op' && this.peek().v === '$')
+        throw new Error('Filter: Data-Frame-Konstrukt ' + name + '$… nicht unterstützt');
+      if (this.peek() && this.peek().t === 'op' && this.peek().v === '(') {
+        this.next();
+        if (name === 'str_detect') {
+          var col = this.expect('id').v; this.expect('op', ',');
+          var arg = this.next(), pats;
+          if (arg && arg.t === 'str') pats = arg.v.split('|');
+          else if (arg && arg.t === 'id') {
+            var lst = lookupList(this.lists, arg.v);
+            if (!lst) throw new Error('Filter: Liste nicht auflösbar: ' + arg.v);
+            pats = (typeof lst === 'string' ? lst.split('|') : lst).slice();
+          } else throw new Error('str_detect: ' + JSON.stringify(arg));
+          this.expect('op', ')');
+          return { k: 'rdetect', col: col, pats: pats };
+        }
+        if (name === 'is.na') {
+          var col2 = this.expect('id').v; this.expect('op', ')');
+          return { k: 'risna', col: col2 };
+        }
+        throw new Error('Filter: unbekannte Funktion ' + name);
+      }
+      return { k: 'col', name: name };
+    }
+    throw new Error('Filter: unerwartetes Token ' + JSON.stringify(tok));
+  };
+
+  // Dreiwertige Auswertung: true / false / null (NA)
+  function evalR(node, row, ctx) {
+    switch (node.k) {
+      case 'rand': {
+        var a = evalR(node.a, row, ctx), b = evalR(node.b, row, ctx);
+        if (a === false || b === false) return false;
+        if (a === null || b === null) return null;
+        return true;
+      }
+      case 'ror': {
+        var a2 = evalR(node.a, row, ctx), b2 = evalR(node.b, row, ctx);
+        if (a2 === true || b2 === true) return true;
+        if (a2 === null || b2 === null) return null;
+        return false;
+      }
+      case 'rnot': {
+        var x = evalR(node.a, row, ctx);
+        return x === null ? null : !x;
+      }
+      case 'rdetect': {
+        var s = row[node.col];
+        if (s == null) return null;                    // R: str_detect(NA) = NA
+        s = String(s);
+        for (var i = 0; i < node.pats.length; i++)
+          if (s.indexOf(node.pats[i]) !== -1) return true;
+        return false;
+      }
+      case 'risna': return row[node.col] == null;
+      case 'rgenor': {
+        // Mengen-Semantik: Fälle mit NA-AllBeh sind nicht in der JID-Menge
+        var beh = row.AllBeh, hitG = false;
+        if (beh != null) {
+          beh = String(beh);
+          var jahrG = row.Jahr != null ? Number(row.Jahr) : null;
+          var key = node.base + '|' + jahrG;
+          var lst = ctx.rlCache[key];
+          if (lst === undefined) {
+            lst = resolveList(ctx.lists, node.base, jahrG);
+            ctx.rlCache[key] = lst;
+          }
+          if (!lst) throw new Error('Laufzeitliste nicht auflösbar: ' + node.base);
+          for (var g = 0; g < lst.length; g++)
+            if (beh.indexOf(lst[g]) !== -1) { hitG = true; break; }
+        }
+        return node.neg ? !hitG : hitG;
+      }
+      case 'rref': {
+        var sub = ctx.compiled[node.ref];
+        if (!sub) {
+          if (ctx.building[node.ref]) throw new Error('Zyklus in Filter-Referenz: ' + node.ref);
+          ctx.building[node.ref] = true;
+          sub = ctx.compiled[node.ref] = new RParser(tokenizeR(ctx.filters[node.ref]), ctx).parse();
+          delete ctx.building[node.ref];
+        }
+        // Mengen-Semantik: nur Fälle mit Filter=TRUE sind in der JID-Menge
+        var inSet = evalR(sub, row, ctx) === true;
+        return node.neg ? !inSet : inSet;
+      }
+      case 'rbetween': {
+        var v = rval(node.a, row, ctx);
+        if (v == null) return null;
+        return Number(v) >= node.lo && Number(v) <= node.hi;
+      }
+      case 'rin': case 'rnotin': {
+        var v2 = rval(node.a, row, ctx);
+        if (v2 == null) return null;
+        var hit = false;
+        for (var j = 0; j < node.list.length; j++)
+          if (String(v2) === String(node.list[j])) { hit = true; break; }
+        return node.k === 'rin' ? hit : !hit;
+      }
+      case 'rcmp': {
+        var l = rval(node.a, row, ctx), r = rval(node.b, row, ctx);
+        if (l == null || r == null) return null;
+        if (typeof l === 'number' || typeof r === 'number') { l = Number(l); r = Number(r); }
+        switch (node.op) {
+          case '==': return l === r || String(l) === String(r);
+          case '!=': return !(l === r || String(l) === String(r));
+          case '<': return l < r;
+          case '>': return l > r;
+          case '<=': return l <= r;
+          case '>=': return l >= r;
+        }
+      }
+    }
+    throw new Error('evalR: ' + node.k);
+  }
+  function rval(node, row, ctx) {
+    if (node.k === 'num' || node.k === 'str') return node.v;
+    if (node.k === 'col') { var v = row[node.name]; return v === undefined ? null : v; }
+    // boolesche Teilausdruecke als 0/1 (BAG schreibt teils str_detect(...)>0)
+    var b = evalR(node, row, ctx);
+    return b === null ? null : (b ? 1 : 0);
+  }
+
+  // compileFilter(expr, lists, filters) -> function(row) -> boolean (NA -> false)
+  // filters: Map Name -> fCHIQI-Ausdruck (für JID-Referenzen wie CHIQI_I6_01_F_JID)
+  function compileFilter(expr, lists, filters) {
+    var ctx = { lists: lists || {}, filters: filters || {}, compiled: {}, building: {}, rlCache: {} };
+    var ast = new RParser(tokenizeR(expr), ctx).parse();
+    return function (row) { return evalR(ast, row, ctx) === true; };
   }
 
   // ------------------------------------------------- Indikator-Berechnung --
@@ -286,12 +720,13 @@
    * indicator: { id, label, sqlF, sqlM, refStrata:[{altEGrp,sex,pCH}], refJahr }
    * Nur ausgetretene Fälle werden gezählt (CH-IQI zählt Austritte).
    */
-  function computeIndicator(cases, ind) {
-    var fF = compile(ind.sqlF), fM = compile(ind.sqlM);
+  function computeIndicator(cases, ind, lists) {
+    var fF = compile(ind.sqlF, lists), fM = compile(ind.sqlM, lists);
     var refMap = {};
     (ind.refStrata || []).forEach(function (s) { refMap[s.altEGrp + '|' + s.sex] = s.pCH; });
+    var glmP = ind.glm ? compileGlm(ind.glm) : null;
 
-    var n = 0, O = 0, E = 0, refMisses = 0;
+    var n = 0, O = 0, E = 0, Eglm = 0, refMisses = 0, glmMisses = 0;
     var faelleF = [];
     cases.forEach(function (c) {
       if (c.nochHospitalisiert) return;
@@ -304,27 +739,38 @@
         var p = refMap[altEGrp(row.AltE) + '|' + row.Sex];
         if (p !== undefined) E += p; else refMisses++;
       }
+      if (glmP) {
+        var pg = glmP(row);
+        if (pg != null) Eglm += pg; else glmMisses++;
+      }
     });
 
+    // Massgebliches E: GLM, falls differenziertes Risikomodell vorliegt
+    // (BAG-FAQ V5.5: ersetzt die reine Alter/Geschlecht-Adjustierung).
+    var Eeff = glmP ? Eglm : (ind.refStrata ? E : null);
     var res = {
       id: ind.id, label: ind.label,
       n: n, O: O,
       rate: n > 0 ? O / n : null,
-      E: ind.refStrata ? E : null,
-      smr: ind.refStrata && E > 0 ? O / E : null,
+      E: Eeff,
+      smr: Eeff != null && Eeff > 0 ? O / Eeff : null,
+      adjustierung: glmP ? 'GLM (differenziertes Risikomodell)' : (ind.refStrata ? 'Alter/Geschlecht' : null),
+      EAlterGeschlecht: ind.refStrata ? E : null,
       refJahr: ind.refJahr || null,
-      refMisses: refMisses,
+      refMisses: glmP ? glmMisses : refMisses,
       fallIds: faelleF
     };
     return res;
   }
 
-  function computeAll(cases, indicators) {
-    return indicators.map(function (ind) { return computeIndicator(cases, ind); });
+  function computeAll(cases, indicators, lists) {
+    return indicators.map(function (ind) { return computeIndicator(cases, ind, lists); });
   }
 
   return {
     compile: compile,
+    compileGlm: compileGlm,
+    compileFilter: compileFilter,
     caseToRow: caseToRow,
     computeIndicator: computeIndicator,
     computeAll: computeAll,

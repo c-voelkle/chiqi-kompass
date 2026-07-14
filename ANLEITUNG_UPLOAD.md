@@ -33,5 +33,7 @@ Nach Änderungen kopieren:
     cp spiges/spiges_parser.js deploy/spiges/ && cp spiges/spiges_parser.js deploy/chiqi/
     cp chiqi-engine/chiqi_engine.js chiqi-engine/chiqi_demo_defs.js deploy/chiqi/
 
-BAG-Quelldateien und `chiqi_definitions_v52.json` gehören NICHT hierher
-(Nutzungsbedingungen angefragt); die Demos brauchen nur `chiqi_demo_defs.js`.
+BAG-Quelldateien und `chiqi_definitions_v55.json` gehören NICHT hierher;
+die Demos brauchen nur `chiqi_demo_defs.js`. (Nutzung der BAG-Spezifikationen
+mit Quellenangabe ist seit Juli 2026 schriftlich freigegeben; die grossen
+Quelldateien bleiben trotzdem draussen, um das Pages-Repo schlank zu halten.)
