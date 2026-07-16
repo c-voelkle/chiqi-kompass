@@ -76,7 +76,8 @@
     <table>
       <thead><tr>
         <th>Indikator</th><th class="num">Fälle (n)</th><th class="num">Todesfälle (O)</th>
-        <th class="num">Rate</th><th class="num">Erwartet (E)</th><th class="num">O/E (SMR)</th>
+        <th class="num">Rate</th><th class="num">Erwartete Rate</th><th class="num">O/E (SMR)</th>
+        <th class="num" title="Fälle ohne passende Referenzrate (Alter/Geschlecht). Sie zählen im Nenner, aber nicht im Erwartungswert E. Sollte 0 sein.">o. Ref.</th>
       </tr></thead>
       <tbody id="indTable"></tbody>
     </table>
@@ -86,12 +87,15 @@
       codierte Austritte fehlen (Kodierverzug) und können die Raten verzerren. Kleine kumulierte
       Fallzahlen ergeben breite Zufallsstreuung; O/E-Werte sind Hinweise auf
       <em>prüfenswerte</em> Auffälligkeiten, keine Qualitätsurteile.
-      Erwartungswerte (E) basieren auf den nationalen BAG-Referenzraten
-      <span id="refJahrNote"></span>; Herzinfarkt (A.1.1) mit differenziertem
+      Die erwartete Rate (Erwartungswert je Fall) basiert auf den nationalen BAG-Referenzraten
+      <span id="refJahrNote"></span>; der SMR (O/E) wird aus den absoluten Werten gebildet.
+      Herzinfarkt (A.1.1) mit differenziertem
       Risikomodell gemäss v5.5 (logistische Regression mit Komorbiditäten),
       Schlaganfall und Pneumonie mit indirekter Alters-/Geschlechts-Standardisierung.
       Berechnungsgrundlagen: CH-IQI Spezifikationen v5.5 und Referenzdaten 2024,
       Quelle BAG (Nutzung mit Quellenangabe freigegeben).
+      Die Spalte <em>o. Ref.</em> zeigt Fälle ohne passende Alters-/Geschlechts-Referenzrate;
+      sie zählen im Nenner, aber nicht im Erwartungswert E, und sollte 0 sein.
     </div>
     <p class="hint" id="importInfo"></p>
   </div>
@@ -145,8 +149,10 @@
         return '<tr><td><strong>' + esc(r.id) + '</strong><br><span class="hint">' + esc(r.label) + '</span></td>' +
           '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
           '<td class="num">' + pct(r.rate) + '</td>' +
-          '<td class="num">' + (r.E == null ? '–' : r.E.toFixed(2)) + '</td>' +
-          '<td class="num">' + smr + '</td></tr>';
+          '<td class="num"' + (r.E == null ? '' : ' title="Erwartete Todesfälle (absolut): ' + r.E.toFixed(2) + '"') + '>' +
+            (r.E == null || !r.n ? '–' : pct(r.E / r.n)) + '</td>' +
+          '<td class="num">' + smr + '</td>' +
+          '<td class="num">' + (r.refMisses ? '<span class="smr-hoch">' + r.refMisses + '</span>' : '0') + '</td></tr>';
       }).join('');
 
       document.getElementById('metaBadge').textContent =

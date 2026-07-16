@@ -36,7 +36,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var ENGINE_VERSION = '0.5.0';
+  var ENGINE_VERSION = '0.5.1';
 
   // ------------------------------------------------------ SQL-Mini-Parser --
 
@@ -722,8 +722,13 @@
    */
   function computeIndicator(cases, ind, lists) {
     var fF = compile(ind.sqlF, lists), fM = compile(ind.sqlM, lists);
-    var refMap = {};
-    (ind.refStrata || []).forEach(function (s) { refMap[s.altEGrp + '|' + s.sex] = s.pCH; });
+    var refMap = {}, refGrpBySex = {};
+    (ind.refStrata || []).forEach(function (s) {
+      refMap[s.altEGrp + '|' + s.sex] = s.pCH;
+      var g = refGrpBySex[s.sex] || (refGrpBySex[s.sex] = { min: s.altEGrp, max: s.altEGrp });
+      if (s.altEGrp < g.min) g.min = s.altEGrp;
+      if (s.altEGrp > g.max) g.max = s.altEGrp;
+    });
     var glmP = ind.glm ? compileGlm(ind.glm) : null;
 
     var n = 0, O = 0, E = 0, Eglm = 0, refMisses = 0, glmMisses = 0;
@@ -736,7 +741,15 @@
       faelleF.push(c.fallId);
       if (fM(row)) O++;
       if (ind.refStrata && row.AltE != null && row.Sex != null) {
-        var p = refMap[altEGrp(row.AltE) + '|' + row.Sex];
+        // Offene Randgruppen: die BAG-Referenz endet oben bei 95-99 (bzw.
+        // beginnt bei der ersten belegten Gruppe). Ein Hochbetagter >= 100
+        // ergibt sonst eine Gruppe ohne Referenzrate und wurde faelschlich
+        // aus E verworfen (refMiss); das senkt E und hebt den SMR. IQM/BAG
+        // behandeln die aeusserste Gruppe als offen, daher auf den belegten
+        // Bereich des jeweiligen Geschlechts clampen.
+        var g = refGrpBySex[row.Sex], grp = altEGrp(row.AltE);
+        if (g) { if (grp > g.max) grp = g.max; else if (grp < g.min) grp = g.min; }
+        var p = refMap[grp + '|' + row.Sex];
         if (p !== undefined) E += p; else refMisses++;
       }
       if (glmP) {
