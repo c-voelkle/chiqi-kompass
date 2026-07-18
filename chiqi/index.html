@@ -45,6 +45,41 @@
     .warnbox { break-inside:avoid; }
     a { text-decoration:none; color:inherit; }
   }
+/* --- PDF-Bericht (Berichtsschale wie Cockpit) --- */
+#report{display:none}
+body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#fff;padding:24px}
+@media screen{body.rep-mode header,body.rep-mode main,body.rep-mode #standaloneNav{display:none}}
+@media print{
+  body.rep-mode header,body.rep-mode main,body.rep-mode #standaloneNav{display:none!important}
+  body.rep-mode #report{display:block;max-width:none;padding:0}
+  body.rep-mode{background:#fff}
+  @page{size:A4;margin:15mm 14mm}
+  .rep-page{page-break-after:always}
+  .rep-cover{min-height:245mm}
+}
+#report h2{font-size:14px;margin:20px 0 8px;color:var(--blau);border-bottom:2px solid var(--blau);padding-bottom:3px;page-break-after:avoid}
+#report table{font-size:10.5px}
+#report th,#report td{padding:.3rem .5rem}
+#report tr{page-break-inside:avoid}
+#report thead{display:table-header-group}
+#report p{font-size:11px;line-height:1.6;margin:6px 0}
+.rep-cover{display:flex;flex-direction:column;justify-content:space-between;min-height:640px}
+.rep-brand{font-size:14px;font-weight:700;color:var(--blau);letter-spacing:.5px}
+.rep-cover-title{font-size:28px;font-weight:700;color:var(--blau);margin:90px 0 14px}
+.rep-cover-inst{font-size:18px;color:#1c3d6e;font-weight:600}
+.rep-cover-meta{font-size:12px;color:#66707c;margin-top:10px;line-height:1.7}
+.rep-proto{font-size:11px;background:#e0a90f;color:#fff;padding:2px 8px;border-radius:12px;vertical-align:middle;letter-spacing:.5px}
+.rep-cover-kpis{display:flex;gap:14px;margin:36px 0}
+.rep-ck{flex:1;border:1px solid var(--rand);border-radius:8px;padding:10px 12px}
+.rep-ck b{display:block;font-size:22px;color:var(--blau)}
+.rep-ck span{font-size:10.5px;color:#66707c}
+.rep-disclaimer{border:1px solid #d9dee5;background:#f6f8fa;border-radius:8px;padding:12px 14px;font-size:10.5px;color:#4a5563;line-height:1.6}
+.rep-cover-foot{font-size:10px;color:#66707c;margin-top:16px}
+.rep-sub{font-size:11.5px;color:#66707c;margin-top:4px}
+.rep-exec{font-size:11.5px;line-height:1.65}
+.rep-note{font-size:10px;color:#66707c;margin-top:4px}
+.rep-foot{margin-top:18px;font-size:10px;color:#66707c;line-height:1.6}
+.rep-foot h2{font-size:12px}
 </style>
 </head>
 <body>
@@ -114,11 +149,13 @@
     </details>
   </div>
 </main>
+<div id="report"></div>
 <script>
 (function () {
   var drop = document.getElementById('drop');
   var input = document.getElementById('fileInput');
   var statusEl = document.getElementById('status');
+  var LAST = null;
 
   drop.addEventListener('click', function () { input.click(); });
   input.addEventListener('change', function () { if (input.files[0]) handle(input.files[0]); });
@@ -203,13 +240,129 @@
       ].map(function (r) {
         return '<tr><th style="white-space:nowrap">' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
       }).join('');
+      LAST = { res: res, results: results, sum: sum, austritte: austritte, zeitraum: zeitraum };
     } catch (e) {
       statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
     }
   }
-  document.getElementById('btnPdf') && document.addEventListener('click', function (e) {
-    if (e.target && e.target.id === 'btnPdf') window.print();
+  function assessRow(r) {
+    if (r.E == null || r.n < 10 || r.E < 3) return { z: null, label: 'nicht beurteilbar' };
+    var se = Math.sqrt(r.E * (1 - r.E / r.n));
+    if (!(se > 0)) return { z: null, label: 'nicht beurteilbar' };
+    var z = (r.O - r.E) / se;
+    return { z: z, label: z > 1.96 ? 'signifikant erh\u00f6ht' : (z < -1.96 ? 'signifikant tiefer' : 'unauff\u00e4llig') };
+  }
+  function joinDe(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' und ' + a[a.length - 1]; }
+  function buildReport() {
+    if (!LAST) return;
+    var res = LAST.res, results = LAST.results, sum = LAST.sum, austritte = LAST.austritte, zeitraum = LAST.zeitraum;
+    var today = new Date().toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' });
+    var ass = results.map(assessRow);
+    var erhoeht = results.filter(function (r, i) { return ass[i].label === 'signifikant erh\u00f6ht'; });
+    var tiefer = results.filter(function (r, i) { return ass[i].label === 'signifikant tiefer'; });
+    var nb = results.filter(function (r, i) { return ass[i].label === 'nicht beurteilbar'; });
+    var refMissTotal = results.reduce(function (a, r) { return a + (r.refMisses || 0); }, 0);
+    var qs = Object.keys(sum.nachQuartal).sort();
+    var verzug = false;
+    if (qs.length >= 2) {
+      var prev = qs.slice(0, -1).map(function (q) { return sum.nachQuartal[q]; }).sort(function (a, b) { return a - b; });
+      var med = prev[Math.floor(prev.length / 2)];
+      if (med > 0 && sum.nachQuartal[qs[qs.length - 1]] < 0.6 * med) verzug = true;
+    }
+    var inst = 'Unternehmen ' + (res.meta.entId || 'unbekannt');
+    var instSub = res.meta.standorte.length ? 'Standorte (BUR): ' + res.meta.standorte.join(', ') : '';
+
+    var exec = 'Aus der SpiGes-Datei wurden ' + res.meta.counts.faelle + ' F\u00e4lle importiert (' + austritte +
+      ' Austritte, Zeitraum ' + zeitraum + ') und ' + results.length + ' CH-IQI-Indikatoren berechnet. ';
+    exec += erhoeht.length
+      ? 'Pr\u00fcfenswert: ' + joinDe(erhoeht.map(function (r) { return r.id; })) + ' mit signifikant \u00fcber der Erwartung liegender Mortalit\u00e4t. '
+      : 'Kein Indikator liegt statistisch signifikant \u00fcber der Erwartung. ';
+    if (tiefer.length) exec += 'Positiv: ' + joinDe(tiefer.map(function (r) { return r.id; })) + ' signifikant unter der Erwartung. ';
+    if (nb.length) exec += nb.length + ' Indikator' + (nb.length > 1 ? 'en' : '') + ' ist mangels Fallzahl nicht beurteilbar. ';
+    exec += refMissTotal
+      ? 'Achtung: ' + refMissTotal + (refMissTotal === 1 ? ' Fall' : ' F\u00e4lle') + ' ohne passende Referenzrate (Spalte o. Ref.); der Erwartungswert ist dort unvollst\u00e4ndig. '
+      : 'Alle F\u00e4lle konnten einer Referenzrate zugeordnet werden (o. Ref. = 0). ';
+    if (verzug) exec += 'Das letzte Quartal (' + qs[qs.length - 1] + ') enth\u00e4lt deutlich weniger Austritte als die Vorquartale, vermutlich Kodierverzug; die Raten sind entsprechend vorl\u00e4ufig. ';
+    exec += 'Alle Markierungen sind Pr\u00fcfhinweise, kein Qualit\u00e4tsurteil.';
+
+    var html = '<div class="rep-cover rep-page">' +
+      '<div><div class="rep-brand">\ud83e\udded CH-IQI Kompass <span class="rep-proto">PROTOTYP</span></div>' +
+      '<div class="rep-cover-title">QM-Pr\u00fcfbericht CH-IQI<br>Unterj\u00e4hrige Auswertung</div>' +
+      '<div class="rep-cover-inst">' + esc(inst) + '</div>' +
+      '<div class="rep-cover-meta">' + esc(instSub) + (instSub ? '<br>' : '') +
+      'Auswertungszeitraum (Austritte): ' + esc(zeitraum) + '<br>erstellt am ' + today + '</div></div>' +
+      '<div class="rep-cover-kpis">' +
+      '<div class="rep-ck"><b>' + res.meta.counts.faelle + '</b><span>F\u00e4lle importiert</span></div>' +
+      '<div class="rep-ck"><b>' + austritte + '</b><span>Austritte im Zeitraum</span></div>' +
+      '<div class="rep-ck"><b>' + erhoeht.length + '</b><span>Indikatoren signifikant erh\u00f6ht</span></div>' +
+      '<div class="rep-ck"><b>' + refMissTotal + '</b><span>F\u00e4lle ohne Referenzrate (o. Ref.)</span></div></div>' +
+      '<div><div class="rep-disclaimer"><b>Interner Pr\u00fcfhinweis f\u00fcr das Qualit\u00e4tsmanagement.</b> ' +
+      'Dieser Bericht erzeugt kein Ranking und kein Qualit\u00e4tsurteil. Er beruht auf unterj\u00e4hrigen, ' +
+      'noch unvollst\u00e4ndigen Daten und dient der fr\u00fchzeitigen internen Priorisierung. ' +
+      'Die Verarbeitung erfolgte vollst\u00e4ndig lokal im Browser, es wurden keine Daten \u00fcbermittelt.</div>' +
+      '<div class="rep-cover-foot">Datenquelle: eigene SpiGes-Falldaten (' + esc(res.meta.importprotokoll.datei) +
+      ', SpiGes ' + esc(res.meta.formatVersion || '?') + ') \u00b7 Referenzraten: BAG, CH-IQI Spezifikationen v' +
+      CHIQI_DEMO.meta.chiqiVersion + ', Referenzjahr ' + CHIQI_DEMO.indicators[0].refJahr +
+      ' \u00b7 CH-IQI Kompass (Open Source, Prototyp) \u00b7 curtis.voelkle@gmail.com</div></div></div>';
+
+    html += '<div class="rep-sub"><b>' + esc(inst) + '</b> \u00b7 Zeitraum ' + esc(zeitraum) + ' \u00b7 ' + today + '</div>' +
+      '<h2>Executive Summary</h2><p class="rep-exec">' + exec + '</p>';
+
+    html += '<h2>CH-IQI-Indikatoren (' + results.length + ')</h2>' +
+      '<table><thead><tr><th>Indikator</th><th class="num">F\u00e4lle (n)</th><th class="num">Todesf\u00e4lle (O)</th>' +
+      '<th class="num">Rate</th><th class="num">Erwartete Rate</th><th class="num">O/E (SMR)</th>' +
+      '<th class="num">z</th><th class="num">o. Ref.</th><th>Einordnung</th></tr></thead>' +
+      results.map(function (r, i) {
+        var a = ass[i];
+        return '<tr><td><b>' + esc(r.id) + '</b> ' + esc(r.label) + '</td>' +
+          '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
+          '<td class="num">' + pct(r.rate) + '</td>' +
+          '<td class="num">' + (r.E == null || !r.n ? '\u2013' : pct(r.E / r.n)) + '</td>' +
+          '<td class="num">' + (r.smr == null ? '\u2013' : r.smr.toFixed(2)) + '</td>' +
+          '<td class="num">' + (a.z == null ? '\u2013' : a.z.toFixed(1)) + '</td>' +
+          '<td class="num">' + (r.refMisses || 0) + '</td>' +
+          '<td>' + a.label + '</td></tr>';
+      }).join('') + '</table>' +
+      '<p class="rep-note">Voraussetzungen f\u00fcr die Einordnung: mindestens 10 F\u00e4lle und mindestens 3 erwartete Ereignisse; Signifikanzgrenze |z| &gt; 1.96. o. Ref. z\u00e4hlt F\u00e4lle ohne passende Alters-/Geschlechts-Referenzrate (sollen 0 sein).</p>';
+
+    html += '<h2>Kodierstand: Austritte nach Quartal</h2>' +
+      '<table><thead><tr><th>Quartal</th><th class="num">Austritte</th></tr></thead>' +
+      qs.map(function (q) { return '<tr><td>' + esc(q) + '</td><td class="num">' + sum.nachQuartal[q] + '</td></tr>'; }).join('') + '</table>' +
+      (verzug
+        ? '<p class="rep-note"><b>Hinweis Kodierverzug:</b> Das letzte Quartal liegt deutlich unter den Vorquartalen (&lt;60% des Medians). Die Codierung ist dort vermutlich unvollst\u00e4ndig; Raten und SMR des Gesamtzeitraums sind vorl\u00e4ufig.</p>'
+        : '<p class="rep-note">Keine Hinweise auf wesentlichen Kodierverzug (letztes Quartal im Bereich der Vorquartale).</p>');
+
+    html += '<h2>Importprotokoll</h2>' +
+      '<table>' + [
+        ['Datei', res.meta.importprotokoll.datei],
+        ['SpiGes-Formatversion', res.meta.formatVersion || '\u2013'],
+        ['Unternehmen (ent_id)', res.meta.entId || '\u2013'],
+        ['Standorte (BUR)', res.meta.standorte.join(', ') || '\u2013'],
+        ['F\u00e4lle / Diagnosen / CHOP', res.meta.counts.faelle + ' / ' + res.meta.counts.diagnosen + ' / ' + res.meta.counts.behandlungen],
+        ['Verstorben (gesamt)', sum.verstorben],
+        ['Importdatum / Dauer', res.meta.importprotokoll.importDatum + ' / ' + res.meta.importprotokoll.dauerMs + ' ms'],
+        ['Engine / Parser', 'Engine v' + ChiqiEngine.ENGINE_VERSION + ' / Parser v' + res.meta.parserVersion]
+      ].map(function (r) { return '<tr><th style="white-space:nowrap">' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
+      (res.meta.warnings.length
+        ? '<p class="rep-note"><b>Warnungen (' + res.meta.warnings.length + '):</b> ' + res.meta.warnings.map(esc).join(' \u00b7 ') + '</p>' : '');
+
+    html += '<div class="rep-foot"><h2>Methodik</h2>' +
+      '<p>Jedem Fall wird anhand der nationalen BAG-Referenzraten (Referenzjahr ' + CHIQI_DEMO.indicators[0].refJahr + ') ein Erwartungswert zugeordnet; deren Summe ergibt E, der SMR ist O/E, die erwartete Rate E/n. Herzinfarkt (A.1.1) mit differenziertem Risikomodell gem\u00e4ss v5.5 (logistische Regression mit Komorbidit\u00e4ten), Schlaganfall und Pneumonie mit indirekter Alters-/Geschlechts-Standardisierung. z = (O\u2212E)/\u221a(E\u00b7(1\u2212E/n)), Signifikanzgrenze |z| &gt; 1.96, Voraussetzungen n \u2265 10 und E \u2265 3. Berechnungsgrundlagen: CH-IQI Spezifikationen v' + CHIQI_DEMO.meta.chiqiVersion + ' (Quelle BAG, Nutzung mit Quellenangabe freigegeben).</p>' +
+      '<h2>Limitationen</h2>' +
+      '<p>Die Auswertung umfasst nur ausgetretene und bereits codierte F\u00e4lle; noch nicht codierte Austritte fehlen (Kodierverzug) und k\u00f6nnen die Raten verzerren. Kleine kumulierte Fallzahlen ergeben breite Zufallsstreuung; es erfolgt keine Adjustierung f\u00fcr Mehrfachtests. Die Referenzraten beziehen sich auf ein Gesamtjahr, saisonale Effekte sind nicht ber\u00fccksichtigt. Das Demo-Set umfasst ' + results.length + ' Mortalit\u00e4tsindikatoren und ist kein vollst\u00e4ndiges CH-IQI-Set. Unterj\u00e4hrige Ergebnisse sind nicht mit der offiziellen BAG-Jahrespublikation vergleichbar.</p>' +
+      '<p>Eigene SpiGes-Falldaten, vollst\u00e4ndig lokal verarbeitet \u00b7 CH-IQI Kompass \u00b7 Prototyp \u00b7 Feedback: curtis.voelkle@gmail.com</p></div>';
+
+    document.getElementById('report').innerHTML = html;
+  }
+  window.__chiqiReportTest = function (data) { LAST = data; buildReport(); return document.getElementById('report').innerHTML; };
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'btnPdf') {
+      buildReport();
+      document.body.classList.add('rep-mode');
+      setTimeout(function () { window.print(); }, 80);
+    }
   });
+  window.addEventListener('afterprint', function () { document.body.classList.remove('rep-mode'); });
   var detailsWasOpen = null;
   window.addEventListener('beforeprint', function () {
     var d = document.querySelector('#protoCard details');
