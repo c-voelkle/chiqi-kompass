@@ -53,7 +53,12 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   body.rep-mode header,body.rep-mode main,body.rep-mode #standaloneNav{display:none!important}
   body.rep-mode #report{display:block;max-width:none;padding:0}
   body.rep-mode{background:#fff}
-  @page{size:A4;margin:15mm 14mm}
+  @page{size:A4;margin:15mm 14mm 18mm;
+    @top-left{content:''}@top-center{content:''}@top-right{content:''}
+    @bottom-left{content:''}@bottom-right{content:''}
+    @bottom-center{content:counter(page);font-family:"Segoe UI",system-ui,sans-serif;font-size:9px;color:#9aa3ad}
+  }
+  @page:first{@bottom-center{content:''}}
   .rep-page{page-break-after:always}
   .rep-cover{min-height:245mm}
 }
@@ -106,7 +111,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       <h1 style="font-size:1.3rem;color:var(--blau);margin:0 0 .2rem">CH-IQI Kompass: Unterjährige Auswertung</h1>
       <table style="margin:.4rem 0 1rem"><tbody id="printMeta"></tbody></table>
     </div>
-    <button id="btnPdf" title="Druckoptimierten Bericht erzeugen. Im Dialog «Als PDF speichern» wählen.">&#128196; PDF-Bericht</button>
+    <button id="btnPdf" title="Druckoptimierten Bericht erzeugen: im Dialog «Als PDF speichern» wählen. Kopf-/Fusszeilen des Browsers einmalig deaktivieren; die Seitenzahl setzt der Bericht selbst.">&#128196; PDF-Bericht</button>
     <h2>CH-IQI-Indikatoren <span class="badge" id="metaBadge"></span></h2>
     <table>
       <thead><tr>
@@ -305,7 +310,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       CHIQI_DEMO.meta.chiqiVersion + ', Referenzjahr ' + CHIQI_DEMO.indicators[0].refJahr +
       ' \u00b7 CH-IQI Kompass (Open Source, Prototyp) \u00b7 curtis.voelkle@gmail.com</div></div></div>';
 
-    html += '<div class="rep-sub"><b>' + esc(inst) + '</b> \u00b7 Zeitraum ' + esc(zeitraum) + ' \u00b7 ' + today + '</div>' +
+    html += '<div class="rep-sub"><b>' + esc(inst) + '</b> \u00b7 Zeitraum ' + esc(zeitraum) + '</div>' +
       '<h2>Executive Summary</h2><p class="rep-exec">' + exec + '</p>';
 
     html += '<h2>CH-IQI-Indikatoren (' + results.length + ')</h2>' +
