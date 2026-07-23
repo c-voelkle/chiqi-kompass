@@ -9,7 +9,8 @@ Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schrit
 | `index.html` | **Shell**: Landingpage mit Kopfleiste/Tabs, lädt Unterseiten im Frame. Die kommunizierte URL https://c-voelkle.github.io/chiqi-kompass/ zeigt weiterhin standardmässig das Cockpit. |
 | `cockpit.html` | Cockpit QIP 2024 (bisheriger Inhalt der index.html) |
 | `spiges/index.html` | SpiGes-Import-Demo (Beta) + Parser + Testdatei |
-| `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) + Engine |
+| `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) + Engine + lokale QM-Workbench |
+| `chiqi/qm_workbench.js` | Fallreview, PDCA und automatisch erzeugter Datenqualitäts-/Methodennachweis |
 
 Teilbare Direktlinks: `…/#cockpit`, `…/#spiges`, `…/#chiqi`.
 Unterseiten funktionieren auch standalone (zeigen dann einen Zurück-Link).

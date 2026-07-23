@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CH-IQI Kompass: Unterjährige Indikator-Auswertung (Machbarkeits-Demo)</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>CH-IQI Kompass: Unterjährige Indikator-Auswertung und QM-Workbench (Pilot)</title>
 <script src="spiges_parser.js"></script>
 <script src="chiqi_engine.js"></script>
 <script src="chiqi_demo_defs.js"></script>
+<script src="qm_workbench.js"></script>
 <style>
   :root { --blau:#1c4e80; --hell:#f4f7fa; --rand:#d5dee8; --gruen:#2e7d32; --rot:#b71c1c; --orange:#e65100; }
   * { box-sizing:border-box; }
@@ -14,7 +16,7 @@
   header { background:var(--blau); color:#fff; padding:1rem 1.5rem; }
   header h1 { margin:0; font-size:1.2rem; font-weight:600; }
   header p { margin:.25rem 0 0; font-size:.85rem; opacity:.85; }
-  main { max-width:1000px; margin:1.5rem auto; padding:0 1rem; }
+  main { max-width:1180px; margin:1.5rem auto; padding:0 1rem; }
   .card { background:#fff; border:1px solid var(--rand); border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1.25rem; }
   #drop { border:2px dashed var(--blau); border-radius:8px; padding:2rem; text-align:center; cursor:pointer; }
   #drop.hover { background:#e8f0f8; }
@@ -34,10 +36,13 @@
   .badge { display:inline-block; font-size:.72rem; background:var(--hell); border:1px solid var(--rand); border-radius:4px; padding:.1rem .45rem; margin-left:.4rem; color:#51677d; }
   #btnPdf { float:right; background:var(--blau); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; font-size:.85rem; cursor:pointer; }
   #btnPdf:hover { opacity:.9; }
+  #btnCockpit { float:right; background:var(--gruen); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; margin-right:.5rem; font-size:.85rem; cursor:pointer; }
+  #btnCockpit:hover { opacity:.9; }
+  .transfer-note { clear:both; padding-top:.65rem; }
   .print-only { display:none; }
   @media print {
     body { background:#fff; }
-    header, #importCard, #status, #btnPdf, #standaloneNav { display:none !important; }
+    header, #importCard, #status, #btnPdf, #btnCockpit, #standaloneNav { display:none !important; }
     main { max-width:none; margin:0; padding:0; }
     .card { border:0; box-shadow:none; padding:.4rem 0; margin-bottom:.8rem; break-inside:avoid; }
     .print-only { display:block !important; }
@@ -83,15 +88,77 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
 .rep-sub{font-size:11.5px;color:#66707c;margin-top:4px}
 .rep-exec{font-size:11.5px;line-height:1.65}
 .rep-note{font-size:10px;color:#66707c;margin-top:4px}
-.rep-foot{margin-top:18px;font-size:10px;color:#66707c;line-height:1.6}
-.rep-foot h2{font-size:12px}
+  .rep-foot{margin-top:18px;font-size:10px;color:#66707c;line-height:1.6}
+  .rep-foot h2{font-size:12px}
+  /* --- Lokale QM-Workbench --- */
+  .wb-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+  .wb-head h2{margin-bottom:.25rem}
+  .wb-actions{display:flex;gap:.45rem;flex-wrap:wrap}
+  .btn{border:1px solid var(--rand);border-radius:6px;background:#fff;color:var(--blau);padding:.45rem .75rem;font-size:.82rem;cursor:pointer;font-weight:600}
+  .btn:hover{background:#eef4fa}.btn.primary{background:var(--blau);color:#fff;border-color:var(--blau)}
+  .btn.danger{color:var(--rot);border-color:#e5bcbc}.btn:disabled{opacity:.45;cursor:not-allowed}
+  .wb-privacy{font-size:.82rem;color:#3e5165;background:#eef6ee;border:1px solid #cde3cd;border-radius:6px;padding:.65rem .8rem;margin:.85rem 0}
+  .wb-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin:1rem 0}
+  .wb-tab{border:1px solid var(--rand);background:#fff;color:var(--blau);border-radius:999px;padding:.45rem .8rem;cursor:pointer;font-weight:600}
+  .wb-tab.active{background:var(--blau);color:#fff;border-color:var(--blau)}
+  .wb-stats{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:.65rem;margin:.8rem 0 1rem}
+  .wb-stat{border:1px solid var(--rand);border-radius:7px;padding:.65rem .75rem;background:#fbfcfd}
+  .wb-stat b{display:block;color:var(--blau);font-size:1.15rem;font-variant-numeric:tabular-nums}
+  .wb-stat span{font-size:.75rem;color:#66798c}
+  .signal{display:inline-block;border-radius:999px;padding:.18rem .55rem;font-size:.75rem;font-weight:700}
+  .signal.high,.signal.blocked{color:#8e190f;background:#fce8e6}
+  .signal.small{color:#7a4a00;background:#fff3d6}.signal.normal{color:#176a35;background:#e8f5ec}
+  .signal.low{color:#1b5e20;background:#e8f5e9}
+  .wb-progress{display:grid;grid-template-columns:repeat(6,1fr);gap:.35rem;margin:.9rem 0 1.15rem}
+  .wb-step{text-align:center;border-top:4px solid #cfd8e2;padding:.38rem .2rem;font-size:.72rem;color:#6a7f94}
+  .wb-step.done{border-color:var(--gruen);color:#205d2a;font-weight:600}
+  .wb-section{border-top:1px solid var(--rand);padding-top:1rem;margin-top:1rem}
+  .wb-section h3{font-size:1rem;color:var(--blau);margin:.1rem 0 .65rem}
+  .wb-toolbar{display:flex;gap:.7rem;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:.55rem 0}
+  .field{display:flex;flex-direction:column;gap:.25rem;min-width:150px;flex:1}
+  .field label,.field-label{font-size:.75rem;color:#52697f;font-weight:600}
+  .field input,.field select,.field textarea{width:100%;border:1px solid #bfcbd7;border-radius:5px;padding:.46rem .55rem;font:inherit;font-size:.85rem;background:#fff;color:#1a2733}
+  .field textarea{min-height:72px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid #8fb4d7;outline-offset:1px}
+  .form-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:.7rem 1rem}
+  .form-grid .wide{grid-column:1/-1}
+  .case-wrap{overflow:auto;max-height:480px;border:1px solid var(--rand);border-radius:6px}
+  .case-table{min-width:980px;margin:0;font-size:.8rem}
+  .case-table thead th{position:sticky;top:0;z-index:1}
+  .case-table tr.excluded{color:#6e7d8c;background:#fafbfc}
+  .case-table tr.selected{background:#eef6ff}
+  .case-table select{max-width:210px;border:1px solid #c5d0dc;border-radius:4px;padding:.3rem;font-size:.78rem}
+  .case-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;white-space:nowrap}
+  .case-original{color:#8a3d00}.wb-count{font-size:.8rem;color:#52697f}
+  .pdca-grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:.8rem}
+  .pdca-phase{border:1px solid var(--rand);border-radius:8px;padding:.85rem;background:#fbfcfd}
+  .pdca-phase h4{margin:0 0 .7rem;color:var(--blau);font-size:.9rem}
+  .pdca-phase .field{margin-bottom:.55rem}
+  .validation{font-size:.8rem;border-radius:6px;padding:.55rem .7rem;margin:.7rem 0}
+  .validation.ok{background:#eaf5ec;color:#22612d;border:1px solid #c5dfca}
+  .validation.warn{background:#fff7e6;color:#7a4a00;border:1px solid #ffe0a3}
+  .impact-box{background:#edf4fb;border:1px solid #c8d9ea;border-radius:6px;padding:.65rem .75rem;font-size:.82rem;line-height:1.5}
+  .protocol-banner{display:flex;justify-content:space-between;gap:1rem;align-items:center;border-radius:8px;padding:.8rem 1rem;margin:.8rem 0}
+  .protocol-banner.pass{background:#eaf5ec;border:1px solid #c5dfca;color:#205d2a}
+  .protocol-banner.warn{background:#fff7e6;border:1px solid #ffe0a3;color:#7a4a00}
+  .protocol-banner.fail{background:#fce8e6;border:1px solid #efc2be;color:#8e190f}
+  .protocol-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.76rem;overflow-wrap:anywhere}
+  .check-pass{color:var(--gruen);font-weight:700}.check-warn{color:var(--orange);font-weight:700}.check-fail{color:var(--rot);font-weight:700}
+  .save-state{font-size:.76rem;color:#52697f;min-height:1.1rem}
+  @media(max-width:760px){
+    .wb-stats{grid-template-columns:repeat(2,1fr)}
+    .wb-progress{grid-template-columns:repeat(3,1fr)}
+    .form-grid,.pdca-grid{grid-template-columns:1fr}
+  }
+  @media print{
+    #workbenchCard,#protocolCard{display:none!important}
+  }
 </style>
 </head>
 <body>
 <div id="standaloneNav" class="hint" style="display:none;padding:.3rem 1.5rem;background:#0d1f38;"><a href="../#chiqi" target="_top" style="color:#cfe0f5;font-size:.78rem;text-decoration:none">&larr; CH-IQI Kompass</a></div>
 <header>
-  <h1>CH-IQI Kompass: Unterjährige Indikator-Auswertung <small>(Machbarkeits-Demo)</small></h1>
-  <p>SpiGes-Import → CH-IQI-Berechnung im Browser · Demo-Set: 3 Mortalitätsindikatoren · Spezifikationen v5.5, Datenjahr 2024 (Quelle: BAG)</p>
+  <h1>CH-IQI Kompass: Unterjährige Indikator-Auswertung <small>(Pilot)</small></h1>
+  <p>SpiGes-Import → CH-IQI-Berechnung → Fallreview → PDCA · Pilot-Set: 3 Mortalitätsindikatoren · Spezifikationen v5.5, Datenjahr 2024 (Quelle: BAG)</p>
 </header>
 <main>
   <div class="card" id="importCard">
@@ -112,12 +179,14 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       <table style="margin:.4rem 0 1rem"><tbody id="printMeta"></tbody></table>
     </div>
     <button id="btnPdf" title="Druckoptimierten Bericht erzeugen: im Dialog «Als PDF speichern» wählen. Kopf-/Fusszeilen des Browsers einmalig deaktivieren; die Seitenzahl setzt der Bericht selbst.">&#128196; PDF-Bericht</button>
+    <button id="btnCockpit" type="button">Im Cockpit vergleichen</button>
     <h2>CH-IQI-Indikatoren <span class="badge" id="metaBadge"></span></h2>
     <table>
       <thead><tr>
         <th>Indikator</th><th class="num">Fälle (n)</th><th class="num">Todesfälle (O)</th>
         <th class="num">Rate</th><th class="num">Erwartete Rate</th><th class="num">O/E (SMR)</th>
         <th class="num" title="Fälle ohne passende Referenzrate (Alter/Geschlecht). Sie zählen im Nenner, aber nicht im Erwartungswert E. Sollte 0 sein.">o. Ref.</th>
+        <th class="num" title="Ausgetretene Nennerfälle ohne Austrittsentscheid. Bei Werten über 0 werden Rate und SMR nicht interpretiert.">Outcome fehlt</th>
       </tr></thead>
       <tbody id="indTable"></tbody>
     </table>
@@ -138,6 +207,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       sie zählen im Nenner, aber nicht im Erwartungswert E, und sollte 0 sein.
     </div>
     <p class="hint" id="importInfo"></p>
+    <p class="hint transfer-note">Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p>
   </div>
 
   <div class="card" id="protoCard" style="display:none">
@@ -153,6 +223,38 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       <div id="warnings"></div>
     </details>
   </div>
+
+  <div class="card" id="workbenchCard" style="display:none">
+    <div class="wb-head">
+      <div>
+        <h2>Lokale QM-Workbench</h2>
+        <div class="hint">Fallauswahl, strukturierter Prüfauftrag und Wirkungsmessung für die drei berechneten Indikatoren.</div>
+      </div>
+      <div class="wb-actions">
+        <button class="btn" id="btnProjectExport" type="button">QM-Projekt exportieren</button>
+        <button class="btn danger" id="btnClearProjects" type="button">Lokale Entwürfe löschen</button>
+        <button class="btn danger" id="btnDiscardCases" type="button">Falldaten verwerfen</button>
+      </div>
+    </div>
+    <div class="wb-privacy"><strong>Lokaler Arbeitsbereich:</strong> Rohdaten und Original-Fall-IDs bleiben nur im Arbeitsspeicher dieses Tabs. Gespeichert werden ausschliesslich QM-Felder und lokal erzeugte Fallreferenzen. Geben Sie keine Patientennamen in Freitextfelder ein.</div>
+    <div id="wbTabs" class="wb-tabs" role="tablist" aria-label="Indikator für die QM-Workbench wählen"></div>
+    <div id="wbIndicator"></div>
+    <div id="wbSaveState" class="save-state" aria-live="polite"></div>
+  </div>
+
+  <div class="card" id="protocolCard" style="display:none">
+    <div class="wb-head">
+      <div>
+        <h2>Datenqualitäts- und Methodennachweis</h2>
+        <div class="hint">Automatisch aus Import, Fallspur, Berechnungsversionen und Plausibilitätsprüfungen erzeugt.</div>
+      </div>
+      <div class="wb-actions">
+        <button class="btn" id="btnProtocolExport" type="button">Nachweis als JSON</button>
+        <button class="btn primary" id="btnEvidencePdf" type="button">QM-Nachweis drucken</button>
+      </div>
+    </div>
+    <div id="protocolContent"></div>
+  </div>
 </main>
 <div id="report"></div>
 <script>
@@ -161,6 +263,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   var input = document.getElementById('fileInput');
   var statusEl = document.getElementById('status');
   var LAST = null;
+  var WORKBENCH = null;
+  var COCKPIT_TRANSFER_KEY = 'chiqiKompass.ownResults.v1';
 
   drop.addEventListener('click', function () { input.click(); });
   input.addEventListener('change', function () { if (input.files[0]) handle(input.files[0]); });
@@ -180,6 +284,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   async function handle(file) {
     statusEl.innerHTML = 'Verarbeite <strong>' + esc(file.name) + '</strong> …';
     document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('workbenchCard').style.display = 'none';
+    document.getElementById('protocolCard').style.display = 'none';
     try {
       var res = await SpiGesParser.parseSpiGes(file, { fileName: file.name });
       var results = ChiqiEngine.computeAll(res.cases, CHIQI_DEMO.indicators);
@@ -194,7 +300,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
           '<td class="num"' + (r.E == null ? '' : ' title="Erwartete Todesfälle (absolut): ' + r.E.toFixed(2) + '"') + '>' +
             (r.E == null || !r.n ? '–' : pct(r.E / r.n)) + '</td>' +
           '<td class="num">' + smr + '</td>' +
-          '<td class="num">' + (r.refMisses ? '<span class="smr-hoch">' + r.refMisses + '</span>' : '0') + '</td></tr>';
+          '<td class="num">' + (r.refMisses ? '<span class="smr-hoch">' + r.refMisses + '</span>' : '0') + '</td>' +
+          '<td class="num">' + (r.outcomeMisses ? '<span class="smr-hoch">' + r.outcomeMisses + '</span>' : '0') + '</td></tr>';
       }).join('');
 
       document.getElementById('metaBadge').textContent =
@@ -208,7 +315,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
         ' Behandlungen · SpiGes ' + (res.meta.formatVersion || '?') +
         ' · Verarbeitung ' + res.meta.importprotokoll.dauerMs + ' ms' +
         (res.meta.warnings.length ? ' · ⚠ ' + res.meta.warnings.length + ' Warnung(en)' : '');
-      statusEl.innerHTML = '<span class="ok">✔ Auswertung abgeschlossen</span>';
+      statusEl.innerHTML = '<span class="ok">✔ Indikatoren berechnet.</span> Lokale QM-Workbench und Methodennachweis werden vorbereitet …';
       document.getElementById('resultCard').style.display = '';
 
       // Importprotokoll & Plausibilisierung
@@ -246,16 +353,494 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
         return '<tr><th style="white-space:nowrap">' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
       }).join('');
       LAST = { res: res, results: results, sum: sum, austritte: austritte, zeitraum: zeitraum };
+      await prepareWorkbench(file, LAST);
+      statusEl.innerHTML = '<span class="ok">✔ Auswertung, Fallspur und Methodennachweis abgeschlossen</span>';
     } catch (e) {
       statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
     }
   }
   function assessRow(r) {
-    if (r.E == null || r.n < 10 || r.E < 3) return { z: null, label: 'nicht beurteilbar' };
+    if (r.outcomeMisses || r.refMisses || r.E == null || r.n < 10 || r.E < 3) return { z: null, label: 'nicht beurteilbar' };
     var se = Math.sqrt(r.E * (1 - r.E / r.n));
     if (!(se > 0)) return { z: null, label: 'nicht beurteilbar' };
     var z = (r.O - r.E) / se;
     return { z: z, label: z > 1.96 ? 'signifikant erh\u00f6ht' : (z < -1.96 ? 'signifikant tiefer' : 'unauff\u00e4llig') };
+  }
+  function attr(s) {
+    return esc(s == null ? '' : s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function num(x, digits) {
+    return x == null || !isFinite(x) ? '–' : Number(x).toFixed(digits == null ? 2 : digits);
+  }
+  function dateDe(value) {
+    if (!value) return '–';
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? String(value) : d.toLocaleDateString('de-CH');
+  }
+  function statusLabel(value) {
+    return {
+      neu: 'Neu',
+      datenpruefung: 'Datenprüfung',
+      fallreview: 'Fallreview',
+      massnahme: 'Massnahme',
+      wirkungsmessung: 'Wirkungsmessung',
+      abgeschlossen: 'Abgeschlossen',
+      ohne_massnahme: 'Ohne Massnahme geschlossen'
+    }[value] || value;
+  }
+  function phaseLabel(value) {
+    return {
+      data: 'Signal',
+      review: 'Review',
+      plan: 'Plan',
+      do: 'Do',
+      check: 'Check',
+      act: 'Act'
+    }[value] || value;
+  }
+  function classOptions(selected) {
+    return ChiqiQm.REVIEW_CLASSES.map(function (c) {
+      return '<option value="' + attr(c.value) + '"' + (c.value === selected ? ' selected' : '') + '>' + esc(c.label) + '</option>';
+    }).join('');
+  }
+  function setPath(object, path, value) {
+    var parts = path.split('.'), target = object;
+    for (var i = 0; i < parts.length - 1; i++) {
+      if (!target[parts[i]]) target[parts[i]] = {};
+      target = target[parts[i]];
+    }
+    target[parts[parts.length - 1]] = value;
+  }
+  function getResult(id) {
+    return WORKBENCH.results.filter(function (r) { return r.id === id; })[0];
+  }
+  function getProject(id) {
+    return WORKBENCH.projects[id];
+  }
+
+  async function prepareWorkbench(file, data) {
+    var period = ChiqiQm.periodFromCases(data.res.cases);
+    var context = ChiqiQm.projectContext(data.res, period);
+    var caseRowsByIndicator = {}, allRows = [];
+    CHIQI_DEMO.indicators.forEach(function (indicator) {
+      var rows = ChiqiQm.buildCaseRows(data.res.cases, indicator, ChiqiEngine);
+      caseRowsByIndicator[indicator.id] = rows;
+      allRows = allRows.concat(rows);
+    });
+    await ChiqiQm.makeLocalReferences(allRows, context, window.localStorage);
+
+    var stored = ChiqiQm.loadProjects(window.localStorage), projects = {};
+    data.results.forEach(function (result) {
+      var key = ChiqiQm.projectKey(context, result.id);
+      var project = ChiqiQm.hydrateProject(stored[key], context, result);
+      project.baseline.engineVersion = ChiqiEngine.ENGINE_VERSION;
+      projects[result.id] = project;
+    });
+
+    var protocol = await ChiqiQm.buildQualityProtocol({
+      file: file,
+      parsed: data.res,
+      results: data.results,
+      indicators: CHIQI_DEMO.indicators,
+      caseRowsByIndicator: caseRowsByIndicator,
+      engineVersion: ChiqiEngine.ENGINE_VERSION,
+      methodMeta: CHIQI_DEMO.meta
+    });
+    WORKBENCH = {
+      results: data.results,
+      caseRowsByIndicator: caseRowsByIndicator,
+      projects: projects,
+      protocol: protocol,
+      context: context,
+      activeId: data.results[0] ? data.results[0].id : null,
+      caseFilter: 'included',
+      showOriginal: false
+    };
+    renderWorkbench();
+    renderProtocol();
+    document.getElementById('workbenchCard').style.display = '';
+    document.getElementById('protocolCard').style.display = '';
+  }
+
+  function renderWorkbench() {
+    if (!WORKBENCH) return;
+    document.getElementById('wbTabs').innerHTML = WORKBENCH.results.map(function (r) {
+      var active = r.id === WORKBENCH.activeId;
+      var assessment = ChiqiQm.assessResult(r);
+      return '<button type="button" role="tab" aria-selected="' + active + '" class="wb-tab' +
+        (active ? ' active' : '') + '" data-indicator="' + attr(r.id) + '">' +
+        esc(r.id + ' ' + (ChiqiQm.INDICATOR_META[r.id] || {}).shortLabel) +
+        ' <span aria-hidden="true">·</span> ' + esc(assessment.label) + '</button>';
+    }).join('');
+    renderIndicatorWorkspace();
+  }
+
+  function filteredCaseRows(rows, project) {
+    var filter = WORKBENCH.caseFilter;
+    if (filter === 'all') return rows;
+    if (filter === 'death') return rows.filter(function (r) { return r.denominator && r.numerator; });
+    if (filter === 'excluded') return rows.filter(function (r) { return !r.denominator; });
+    if (filter === 'selected') return rows.filter(function (r) {
+      return project.reviews[r.localRef] && project.reviews[r.localRef].selected;
+    });
+    return rows.filter(function (r) { return r.denominator; });
+  }
+
+  function renderIndicatorWorkspace() {
+    if (!WORKBENCH || !WORKBENCH.activeId) return;
+    var id = WORKBENCH.activeId, result = getResult(id), project = getProject(id);
+    var rows = WORKBENCH.caseRowsByIndicator[id] || [];
+    var shown = filteredCaseRows(rows, project);
+    var assessment = ChiqiQm.assessResult(result);
+    var review = ChiqiQm.reviewSummary(project);
+    var progress = ChiqiQm.progress(project);
+    var errors = ChiqiQm.validateProject(project);
+    var follow = ChiqiQm.followUp(project);
+    var maxRows = 200, visible = shown.slice(0, maxRows);
+    var workflowOptions = ChiqiQm.WORKFLOW_STATUSES.map(function (s) {
+      return '<option value="' + s + '"' + (project.status === s ? ' selected' : '') + '>' + statusLabel(s) + '</option>';
+    }).join('');
+    var phaseHtml = Object.keys(progress).map(function (key) {
+      return '<div class="wb-step' + (progress[key] ? ' done' : '') + '">' + esc(phaseLabel(key)) + '</div>';
+    }).join('');
+    var caseHtml = visible.map(function (row) {
+      var stored = project.reviews[row.localRef] || {};
+      var selected = !!stored.selected;
+      var caseLabel = WORKBENCH.showOriginal
+        ? '<span class="case-original">' + esc(row.caseId || 'ohne ID') + '</span>'
+        : esc(row.localRef);
+      var eTitle = row.expectedMissing ? 'Erwartungswert fehlt' : '';
+      return '<tr class="' + (!row.denominator ? 'excluded ' : '') + (selected ? 'selected' : '') + '">' +
+        '<td><input type="checkbox" data-case-select="' + attr(row.localRef) + '"' +
+          (selected ? ' checked' : '') + (!row.denominator ? ' disabled' : '') +
+          ' aria-label="Fall ' + attr(row.localRef) + ' für Review auswählen"></td>' +
+        '<td class="case-id">' + caseLabel + '<br><span class="hint">' + esc(row.burnr || 'ohne BUR') + '</span></td>' +
+        '<td>' + esc(dateDe(row.dischargeDate)) + '<br><span class="hint">' + esc(row.quarter || '') + '</span></td>' +
+        '<td>' + esc(row.mainDiagnosis || '–') + '</td>' +
+        '<td class="num">' + (row.age == null ? '–' : row.age) + ' / ' + esc(row.sex || '–') + '</td>' +
+        '<td>' + (row.numerator ? '<strong>verstorben</strong>' : (row.denominator ? 'nicht verstorben' : '–')) + '</td>' +
+        '<td class="num" title="' + attr(eTitle) + '">' + num(row.expected, 4) + '</td>' +
+        '<td>' + esc(row.reasonLabel) + '</td>' +
+        '<td><select data-case-class="' + attr(row.localRef) + '"' + (!selected ? ' disabled' : '') +
+          ' aria-label="Reviewklassifikation für ' + attr(row.localRef) + '">' +
+          classOptions(stored.classification || '') + '</select></td></tr>';
+    }).join('');
+    if (!caseHtml) caseHtml = '<tr><td colspan="9" class="hint">Für diesen Filter sind keine Fälle vorhanden.</td></tr>';
+
+    var impactHtml = '<strong>Noch keine Nachmessung.</strong> Erfassen Sie unter Check n, O und E sowie den Messzeitpunkt.';
+    if (follow.n != null && follow.O != null && follow.E != null) {
+      var power = follow.n >= 10 && follow.E >= 3;
+      impactHtml = '<strong>Nachmessung:</strong> Rate ' + pct(follow.rate) + ', SMR ' + num(follow.smr, 2) +
+        (project.baseline.smr == null || follow.smr == null ? '' :
+          ', Veränderung ' + (follow.smr - project.baseline.smr > 0 ? '+' : '') + num(follow.smr - project.baseline.smr, 2)) +
+        '. ' + (project.check.methodComparable === false
+          ? '<strong>Methodik nicht vergleichbar:</strong> keine Wirkungsinterpretation.'
+          : power
+            ? 'Deskriptiver Vorher-Nachher-Vergleich, kausale Wirkung nicht belegt.'
+            : 'Fallzahl oder Erwartungswert noch zu klein für einen statistischen Wirkungsnachweis.');
+    }
+
+    document.getElementById('wbIndicator').innerHTML =
+      '<div class="wb-head"><div><h3 style="margin:.1rem 0">' + esc(id + ': ' + result.label) + '</h3>' +
+      '<span class="signal ' + assessment.code + '">' + esc(assessment.label) + '</span></div>' +
+      '<div class="field" style="max-width:230px"><label for="wbStatus">Status des Prüfauftrags</label>' +
+      '<select id="wbStatus" data-path="status">' + workflowOptions + '</select></div></div>' +
+      '<div class="wb-stats">' +
+      '<div class="wb-stat"><b>' + result.n + '</b><span>Fälle im Nenner</span></div>' +
+      '<div class="wb-stat"><b>' + result.O + '</b><span>Beobachtete Ereignisse O</span></div>' +
+      '<div class="wb-stat"><b>' + num(result.E, 2) + '</b><span>Erwartete Ereignisse E</span></div>' +
+      '<div class="wb-stat"><b>' + num(result.smr, 2) + '</b><span>SMR O/E</span></div>' +
+      '<div class="wb-stat"><b>' + review.completed + '/' + review.selected + '</b><span>Reviews vollständig</span></div></div>' +
+      '<div class="wb-progress" aria-label="Fortschritt im Qualitätszyklus">' + phaseHtml + '</div>' +
+
+      '<section class="wb-section"><h3>1. Fallauswahl und strukturiertes Review</h3>' +
+      '<div class="wb-toolbar"><div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:end">' +
+      '<div class="field" style="max-width:220px"><label for="caseFilter">Fälle anzeigen</label><select id="caseFilter">' +
+      '<option value="included"' + (WORKBENCH.caseFilter === 'included' ? ' selected' : '') + '>Nennerfälle</option>' +
+      '<option value="death"' + (WORKBENCH.caseFilter === 'death' ? ' selected' : '') + '>Todesfälle im Nenner</option>' +
+      '<option value="excluded"' + (WORKBENCH.caseFilter === 'excluded' ? ' selected' : '') + '>Themennahe Ausschlüsse</option>' +
+      '<option value="selected"' + (WORKBENCH.caseFilter === 'selected' ? ' selected' : '') + '>Für Review ausgewählt</option>' +
+      '<option value="all"' + (WORKBENCH.caseFilter === 'all' ? ' selected' : '') + '>Alle themennahen Fälle</option></select></div>' +
+      '<label style="font-size:.8rem;padding-bottom:.45rem"><input type="checkbox" id="showOriginal"' +
+      (WORKBENCH.showOriginal ? ' checked' : '') + '> Original-Fall-ID nur in diesem Tab anzeigen</label></div>' +
+      '<div class="form-grid" style="min-width:360px;max-width:520px;flex:1">' +
+      '<div class="field"><label>Reviewer:in</label><input data-path="reviewer" value="' + attr(project.reviewer || '') + '" placeholder="Name oder Funktion"></div>' +
+      '<div class="field"><label>Review-Datum</label><input type="date" data-path="reviewDate" value="' + attr(project.reviewDate || '') + '"></div></div></div>' +
+      '<div class="case-wrap"><table class="case-table"><thead><tr><th>Review</th><th>Fallreferenz</th><th>Austritt</th><th>HD</th>' +
+      '<th class="num">Alter / Sex</th><th>Outcome</th><th class="num">pᵢ</th><th>Einordnung</th><th>Klassifikation</th></tr></thead><tbody>' +
+      caseHtml + '</tbody></table></div>' +
+      '<p class="wb-count">Gezeigt: ' + visible.length + ' von ' + shown.length +
+      (shown.length > maxRows ? '. Die Ansicht ist aus Leistungsgründen auf ' + maxRows + ' Zeilen begrenzt.' : '') +
+      '. Die lokale Fallreferenz ist eine gerätegebundene Maskierung und keine Anonymisierung.</p></section>' +
+
+      '<section class="wb-section"><h3>2. Prüfauftrag und PDCA</h3>' +
+      '<div class="form-grid" style="margin-bottom:.8rem"><div class="field"><label>Verantwortliche Person</label>' +
+      '<input data-path="owner" value="' + attr(project.owner) + '" placeholder="Name oder Funktion"></div>' +
+      '<div class="field"><label>Termin</label><input type="date" data-path="dueDate" value="' + attr(project.dueDate) + '"></div></div>' +
+      '<div class="pdca-grid">' +
+      '<div class="pdca-phase"><h4>Plan: Ursache und Ziel</h4>' +
+      '<div class="field"><label>Prüffrage</label><textarea data-path="plan.signalQuestion" placeholder="Welche konkrete Frage soll das Review beantworten?">' + esc(project.plan.signalQuestion) + '</textarea></div>' +
+      '<div class="field"><label>Arbeitshypothese</label><textarea data-path="plan.hypothesis" placeholder="Zum Beispiel Kodierung, Case-Mix oder Prozessschritt">' + esc(project.plan.hypothesis) + '</textarea></div>' +
+      '<div class="field"><label>Messbares Ziel</label><textarea data-path="plan.goal" placeholder="Was soll sich bis wann verändern?">' + esc(project.plan.goal) + '</textarea></div>' +
+      '<div class="form-grid"><div class="field"><label>Messgrösse</label><select data-path="plan.targetMetric">' +
+      ['SMR', 'Rate', 'O−E', 'Prozesskennzahl'].map(function (m) { return '<option' + (project.plan.targetMetric === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('') +
+      '</select></div><div class="field"><label>Zielwert</label><input data-path="plan.targetValue" value="' + attr(project.plan.targetValue) + '" placeholder="z. B. SMR < 1,0"></div></div>' +
+      '<div class="field"><label>Geplante Massnahme</label><textarea data-path="plan.measure" placeholder="Konkrete Veränderung, Verantwortlichkeit und Umfang">' + esc(project.plan.measure) + '</textarea></div></div>' +
+
+      '<div class="pdca-phase"><h4>Do: Umsetzung</h4>' +
+      '<div class="field"><label>Umsetzungsstatus</label><select data-path="do.status">' +
+      '<option value="nicht_begonnen"' + (project.do.status === 'nicht_begonnen' ? ' selected' : '') + '>Nicht begonnen</option>' +
+      '<option value="laufend"' + (project.do.status === 'laufend' ? ' selected' : '') + '>Laufend</option>' +
+      '<option value="umgesetzt"' + (project.do.status === 'umgesetzt' ? ' selected' : '') + '>Umgesetzt</option></select></div>' +
+      '<div class="field"><label>Umgesetzt am</label><input type="date" data-path="do.implementedAt" value="' + attr(project.do.implementedAt) + '"></div>' +
+      '<div class="field"><label>Umsetzungsnachweis</label><textarea data-path="do.implementationNote" placeholder="Beschluss, Schulung, Prozessänderung oder Auditnachweis">' + esc(project.do.implementationNote) + '</textarea></div></div>' +
+
+      '<div class="pdca-phase"><h4>Check: Nachmessung</h4>' +
+      '<p class="hint">Ausgangswert: n=' + result.n + ', O=' + result.O + ', E=' + num(result.E, 3) + ', SMR=' + num(result.smr, 2) + '</p>' +
+      '<div class="form-grid"><div class="field"><label>Messdatum</label><input type="date" data-path="check.measuredAt" value="' + attr(project.check.measuredAt) + '"></div>' +
+      '<div class="field"><label>n</label><input type="number" min="0" step="1" data-path="check.n" value="' + attr(project.check.n) + '"></div>' +
+      '<div class="field"><label>O</label><input type="number" min="0" step="1" data-path="check.O" value="' + attr(project.check.O) + '"></div>' +
+      '<div class="field"><label>E</label><input type="number" min="0" step="0.001" data-path="check.E" value="' + attr(project.check.E) + '"></div></div>' +
+      '<label style="font-size:.8rem;display:block;margin:.5rem 0"><input type="checkbox" data-path="check.methodComparable"' +
+      (project.check.methodComparable !== false ? ' checked' : '') + '> Gleiche Indikatordefinition, Adjustierung und Referenzbasis verwendet</label>' +
+      '<div class="field"><label>Evidenz oder Datenquelle</label><textarea data-path="check.evidence" placeholder="Auswertung, Audit oder Protokoll der Nachmessung">' + esc(project.check.evidence) + '</textarea></div>' +
+      '<div class="impact-box">' + impactHtml + '</div></div>' +
+
+      '<div class="pdca-phase"><h4>Act: Entscheidung und Lernen</h4>' +
+      '<div class="field"><label>Entscheidung</label><select data-path="act.decision">' +
+      '<option value="">Bitte wählen</option>' +
+      '<option value="standardisieren"' + (project.act.decision === 'standardisieren' ? ' selected' : '') + '>Massnahme standardisieren</option>' +
+      '<option value="anpassen"' + (project.act.decision === 'anpassen' ? ' selected' : '') + '>Massnahme anpassen und erneut prüfen</option>' +
+      '<option value="beenden"' + (project.act.decision === 'beenden' ? ' selected' : '') + '>Massnahme beenden</option>' +
+      '<option value="keine_massnahme"' + (project.act.decision === 'keine_massnahme' ? ' selected' : '') + '>Keine Massnahme erforderlich</option></select></div>' +
+      '<div class="field"><label>Schlussfolgerung</label><textarea data-path="act.conclusion" placeholder="Was wurde gelernt und wie geht es weiter?">' + esc(project.act.conclusion) + '</textarea></div>' +
+      '<p class="hint">O−E ist eine statistische Differenz. Sie darf nicht als Zahl vermeidbarer Ereignisse bezeichnet werden.</p></div></div>' +
+      (errors.length
+        ? '<div class="validation warn"><strong>Noch offen:</strong> ' + errors.map(esc).join(' ') + '</div>'
+        : '<div class="validation ok"><strong>Statusanforderungen erfüllt:</strong> Für den gewählten Status sind alle Pflichtfelder vorhanden.</div>') +
+      '</section>';
+  }
+
+  function renderProtocol() {
+    if (!WORKBENCH) return;
+    var p = WORKBENCH.protocol;
+    var bannerClass = p.verdict === 'gueltig' ? 'pass' : (p.verdict === 'mit_warnungen' ? 'warn' : 'fail');
+    var verdictLabel = p.verdict === 'gueltig' ? 'Gültig' :
+      (p.verdict === 'mit_warnungen' ? 'Gültig mit Hinweisen' : 'Nicht interpretierbar');
+    var checks = p.checks.map(function (c) {
+      var mark = c.status === 'pass' ? '✓' : (c.status === 'warn' ? '!' : '✕');
+      var label = c.status === 'pass' ? 'bestanden' : (c.status === 'warn' ? 'Hinweis' : 'nicht bestanden');
+      return '<tr><td class="check-' + c.status + '">' + mark + ' ' + label + '</td><td><strong>' +
+        esc(c.label) + '</strong><br><span class="hint">' + esc(c.detail) + '</span></td></tr>';
+    }).join('');
+    var methods = p.method.indicators.map(function (i) {
+      return '<tr><td><strong>' + esc(i.id) + '</strong><br><span class="hint">' + esc(i.label) + '</span></td>' +
+        '<td>' + esc(i.adjustment || '–') + (i.modelYears.length ? '<br><span class="hint">Modelljahr ' + esc(i.modelYears.join(', ')) + '</span>' : '') + '</td>' +
+        '<td class="num">' + i.referenceYear + '</td><td class="num">' + i.n + '</td><td class="num">' + i.O + '</td>' +
+        '<td class="num">' + num(i.E, 3) + '</td><td>' + esc(i.assessment) + '</td></tr>';
+    }).join('');
+    document.getElementById('protocolContent').innerHTML =
+      '<div class="protocol-banner ' + bannerClass + '"><div><strong>' + verdictLabel + '</strong><br>' +
+      '<span class="hint">' + p.failCount + ' blockierende Prüfungen, ' + p.warningCount + ' Hinweise</span></div>' +
+      '<div class="protocol-id">' + esc(p.certificateId) + '</div></div>' +
+      '<div class="form-grid"><div><table><tr><th>Quelle</th><td>' + esc(p.source.period.from || '–') + ' bis ' + esc(p.source.period.to || '–') + '</td></tr>' +
+      '<tr><th>SpiGes</th><td>Version ' + esc(p.source.formatVersion || '–') + ', ' + p.source.caseCount + ' Fälle</td></tr>' +
+      '<tr><th>Unternehmen</th><td>' + esc(p.source.entId || '–') + '</td></tr>' +
+      '<tr><th>Standorte</th><td>' + esc(p.source.locations.join(', ') || '–') + '</td></tr>' +
+      '<tr><th>Datei-SHA-256</th><td class="protocol-id">' + esc(p.source.fileSha256 || 'nicht verfügbar') + '</td></tr></table></div>' +
+      '<div><table><tr><th>CH-IQI</th><td>Version ' + esc(p.method.chiqiVersion) + '</td></tr>' +
+      '<tr><th>Berechnungspfad</th><td>' + esc(p.method.calculationPath) + '</td></tr>' +
+      '<tr><th>Engine</th><td>v' + esc(p.software.engineVersion) + '</td></tr>' +
+      '<tr><th>Parser</th><td>v' + esc(p.software.parserVersion) + '</td></tr>' +
+      '<tr><th>Workbench</th><td>v' + esc(p.software.workbenchVersion) + '</td></tr></table></div></div>' +
+      '<h3 style="margin-top:1.2rem">Prüfungen</h3><table><thead><tr><th>Status</th><th>Prüfung und Ergebnis</th></tr></thead><tbody>' + checks + '</tbody></table>' +
+      '<h3 style="margin-top:1.2rem">Indikatormethodik</h3><table><thead><tr><th>Indikator</th><th>Adjustierung</th><th class="num">Ref.</th>' +
+      '<th class="num">n</th><th class="num">O</th><th class="num">E</th><th>Einordnung</th></tr></thead><tbody>' + methods + '</tbody></table>' +
+      '<div class="warnbox"><strong>Abgrenzung:</strong> ' + p.limitations.map(esc).join(' ') + '</div>';
+  }
+
+  function saveActiveProject(message) {
+    var project = getProject(WORKBENCH.activeId);
+    try {
+      ChiqiQm.saveProject(window.localStorage, project);
+      document.getElementById('wbSaveState').textContent =
+        (message || 'Lokal gespeichert') + ': ' + new Date().toLocaleTimeString('de-CH');
+    } catch (e) {
+      document.getElementById('wbSaveState').textContent =
+        'Lokales Speichern nicht möglich: ' + e.message;
+    }
+  }
+
+  function downloadJson(name, value) {
+    var blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  document.getElementById('workbenchCard').addEventListener('click', function (e) {
+    var tab = e.target.closest && e.target.closest('[data-indicator]');
+    if (tab) {
+      WORKBENCH.activeId = tab.getAttribute('data-indicator');
+      WORKBENCH.caseFilter = 'included';
+      renderWorkbench();
+    }
+  });
+  var inputSaveTimer = null;
+  document.getElementById('workbenchCard').addEventListener('input', function (e) {
+    if (!WORKBENCH) return;
+    var target = e.target, path = target.getAttribute('data-path');
+    if (!path || target.tagName === 'SELECT' || target.type === 'checkbox') return;
+    var project = getProject(WORKBENCH.activeId);
+    setPath(project, path, target.value);
+    if (path === 'reviewer' || path === 'reviewDate') {
+      Object.keys(project.reviews).forEach(function (key) {
+        if (!project.reviews[key].selected) return;
+        project.reviews[key].reviewer = project.reviewer || '';
+        project.reviews[key].reviewedAt = project.reviewDate || '';
+      });
+    }
+    clearTimeout(inputSaveTimer);
+    inputSaveTimer = setTimeout(function () { saveActiveProject('Entwurf automatisch gespeichert'); }, 250);
+  });
+  document.getElementById('workbenchCard').addEventListener('change', function (e) {
+    if (!WORKBENCH) return;
+    var project = getProject(WORKBENCH.activeId), target = e.target;
+    if (target.id === 'caseFilter') {
+      WORKBENCH.caseFilter = target.value; renderIndicatorWorkspace(); return;
+    }
+    if (target.id === 'showOriginal') {
+      WORKBENCH.showOriginal = target.checked; renderIndicatorWorkspace(); return;
+    }
+    var ref = target.getAttribute('data-case-select');
+    if (ref) {
+      var review = project.reviews[ref] || { classification: '', reviewer: '', reviewedAt: '' };
+      review.selected = target.checked;
+      review.reviewer = project.reviewer || '';
+      review.reviewedAt = project.reviewDate || '';
+      project.reviews[ref] = review;
+      ChiqiQm.recordAudit(project, target.checked ? 'Fall ' + ref + ' für Review ausgewählt' : 'Fall ' + ref + ' aus Review entfernt');
+      saveActiveProject('Fallauswahl gespeichert'); renderIndicatorWorkspace(); return;
+    }
+    ref = target.getAttribute('data-case-class');
+    if (ref) {
+      var classified = project.reviews[ref] || { selected: true };
+      classified.selected = true;
+      classified.classification = target.value;
+      classified.reviewer = project.reviewer || '';
+      classified.reviewedAt = project.reviewDate || '';
+      project.reviews[ref] = classified;
+      ChiqiQm.recordAudit(project, 'Reviewklassifikation aktualisiert');
+      saveActiveProject('Review gespeichert'); renderIndicatorWorkspace(); return;
+    }
+    var path = target.getAttribute('data-path');
+    if (path) {
+      var value = target.type === 'checkbox' ? target.checked : target.value;
+      var previousStatus = project.status;
+      setPath(project, path, value);
+      if (path === 'reviewer' || path === 'reviewDate') {
+        Object.keys(project.reviews).forEach(function (key) {
+          if (!project.reviews[key].selected) return;
+          project.reviews[key].reviewer = project.reviewer || '';
+          project.reviews[key].reviewedAt = project.reviewDate || '';
+        });
+      }
+      if (path === 'status' && value !== previousStatus) {
+        var closureErrors = ChiqiQm.validateProject(project);
+        if (['abgeschlossen', 'ohne_massnahme'].indexOf(value) !== -1 && closureErrors.length) {
+          project.status = previousStatus;
+          document.getElementById('wbSaveState').textContent =
+            'Abschluss noch nicht möglich: ' + closureErrors.join(' ');
+          renderIndicatorWorkspace(); return;
+        }
+        ChiqiQm.recordAudit(project, 'Status geändert: ' + statusLabel(previousStatus) + ' → ' + statusLabel(value));
+      }
+      saveActiveProject('Entwurf gespeichert'); renderIndicatorWorkspace();
+    }
+  });
+
+  document.getElementById('btnProjectExport').addEventListener('click', function () {
+    if (!WORKBENCH) return;
+    var bundle = ChiqiQm.exportProjectBundle(
+      WORKBENCH.context,
+      WORKBENCH.results.map(function (r) { return WORKBENCH.projects[r.id]; }),
+      WORKBENCH.protocol
+    );
+    downloadJson('chiqi-qm-projekt-' + WORKBENCH.context.entId + '-' + WORKBENCH.context.periodKey + '.json', bundle);
+  });
+  document.getElementById('btnProtocolExport').addEventListener('click', function () {
+    if (!WORKBENCH) return;
+    downloadJson('chiqi-methodennachweis-' + WORKBENCH.context.entId + '-' + WORKBENCH.context.periodKey + '.json', WORKBENCH.protocol);
+  });
+  document.getElementById('btnClearProjects').addEventListener('click', function () {
+    if (!WORKBENCH || !window.confirm('Lokale Entwürfe für diese Institution, Periode und die drei Indikatoren löschen?')) return;
+    WORKBENCH.results.forEach(function (r) {
+      ChiqiQm.removeProject(window.localStorage, WORKBENCH.projects[r.id].projectId);
+      WORKBENCH.projects[r.id] = ChiqiQm.createProject(WORKBENCH.context, r);
+      WORKBENCH.projects[r.id].baseline.engineVersion = ChiqiEngine.ENGINE_VERSION;
+    });
+    renderWorkbench();
+    document.getElementById('wbSaveState').textContent = 'Lokale Entwürfe gelöscht.';
+  });
+  document.getElementById('btnDiscardCases').addEventListener('click', function () {
+    if (!LAST || !window.confirm('Importierte Falldaten jetzt aus diesem Tab verwerfen? Lokale QM-Entwürfe bleiben erhalten.')) return;
+    LAST = null; WORKBENCH = null; input.value = '';
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('protoCard').style.display = 'none';
+    document.getElementById('workbenchCard').style.display = 'none';
+    document.getElementById('protocolCard').style.display = 'none';
+    try { sessionStorage.removeItem(COCKPIT_TRANSFER_KEY); } catch (e) {}
+    statusEl.innerHTML = '<span class="ok">✔ Falldaten aus dem Arbeitsspeicher verworfen.</span>';
+  });
+  document.getElementById('btnEvidencePdf').addEventListener('click', function () {
+    if (!LAST) return;
+    buildReport();
+    document.body.classList.add('rep-mode');
+    setTimeout(function () { window.print(); }, 80);
+  });
+  function buildWorkbenchReportHtml() {
+    if (!WORKBENCH) return '';
+    var projectRows = WORKBENCH.results.map(function (r) {
+      var project = WORKBENCH.projects[r.id];
+      var review = ChiqiQm.reviewSummary(project);
+      var follow = ChiqiQm.followUp(project);
+      var effect = follow.n == null
+        ? 'Noch keine Nachmessung'
+        : 'n=' + follow.n + ', O=' + follow.O + ', E=' + num(follow.E, 3) +
+          ', SMR=' + num(follow.smr, 2) +
+          (follow.n >= 10 && follow.E >= 3 && project.check.methodComparable !== false
+            ? ' (deskriptiv vergleichbar)' : ' (kein statistischer Wirkungsnachweis)');
+      return '<tr><td><b>' + esc(r.id) + '</b><br><span class="rep-note">' + esc(r.label) + '</span></td>' +
+        '<td>' + esc(statusLabel(project.status)) + '</td>' +
+        '<td>' + esc(project.owner || 'nicht zugewiesen') + '<br><span class="rep-note">Termin: ' + esc(project.dueDate || 'offen') + '</span></td>' +
+        '<td>' + review.completed + '/' + review.selected + '</td>' +
+        '<td>' + esc(project.plan.goal || 'noch nicht formuliert') + '</td>' +
+        '<td>' + esc(project.plan.measure || 'noch nicht festgelegt') + '</td>' +
+        '<td>' + esc(effect) + '</td></tr>';
+    }).join('');
+    var protocol = WORKBENCH.protocol;
+    var failed = protocol.checks.filter(function (c) { return c.status !== 'pass'; });
+    var checkRows = failed.length ? failed.map(function (c) {
+      return '<tr><td>' + (c.status === 'fail' ? 'Nicht bestanden' : 'Hinweis') + '</td><td><b>' +
+        esc(c.label) + '</b><br><span class="rep-note">' + esc(c.detail) + '</span></td></tr>';
+    }).join('') : '<tr><td>Bestanden</td><td>Alle automatischen Prüfungen ohne Hinweis.</td></tr>';
+    var methodRows = protocol.method.indicators.map(function (i) {
+      return '<tr><td><b>' + esc(i.id) + '</b></td><td>' + esc(i.adjustment || '–') + '</td>' +
+        '<td class="num">' + i.referenceYear + '</td><td>' + esc(i.modelYears.join(', ') || '–') + '</td>' +
+        '<td>' + esc(i.assessment) + '</td></tr>';
+    }).join('');
+    return '<h2>QM-Prüfaufträge und Wirkungsnachweis</h2>' +
+      '<table><thead><tr><th>Indikator</th><th>Status</th><th>Verantwortung</th><th>Reviews</th><th>Ziel</th><th>Massnahme</th><th>Nachmessung</th></tr></thead>' +
+      '<tbody>' + projectRows + '</tbody></table>' +
+      '<p class="rep-note">Fallreviews werden nur aggregiert ausgewiesen. Original-Fall-IDs und Falldaten sind nicht Teil des Berichts.</p>' +
+      '<h2>Datenqualitäts- und Methodennachweis</h2>' +
+      '<p><b>' + esc(protocol.certificateId) + '</b> · Ergebnis: ' +
+      esc(protocol.verdict === 'gueltig' ? 'gültig' : (protocol.verdict === 'mit_warnungen' ? 'gültig mit Hinweisen' : 'nicht interpretierbar')) +
+      ' · erstellt ' + esc(dateDe(protocol.generatedAt)) + '</p>' +
+      '<table><thead><tr><th>Status</th><th>Prüfung</th></tr></thead><tbody>' + checkRows + '</tbody></table>' +
+      '<h2>Berechnungspfad</h2><table><thead><tr><th>Indikator</th><th>Adjustierung</th><th class="num">Referenzjahr</th><th>Modelljahr</th><th>Einordnung</th></tr></thead>' +
+      '<tbody>' + methodRows + '</tbody></table>' +
+      '<p class="rep-note">Automatisch lokal erzeugter Prüf- und Methodennachweis, keine Zertifizierung durch BAG, BFS oder eine Fachgesellschaft. O−E ist eine statistische Differenz und keine Zahl vermeidbarer Ereignisse.</p>';
   }
   function joinDe(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' und ' + a[a.length - 1]; }
   function buildReport() {
@@ -267,6 +852,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     var tiefer = results.filter(function (r, i) { return ass[i].label === 'signifikant tiefer'; });
     var nb = results.filter(function (r, i) { return ass[i].label === 'nicht beurteilbar'; });
     var refMissTotal = results.reduce(function (a, r) { return a + (r.refMisses || 0); }, 0);
+    var outcomeMissTotal = results.reduce(function (a, r) { return a + (r.outcomeMisses || 0); }, 0);
     var qs = Object.keys(sum.nachQuartal).sort();
     var verzug = false;
     if (qs.length >= 2) {
@@ -287,6 +873,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     exec += refMissTotal
       ? 'Achtung: ' + refMissTotal + (refMissTotal === 1 ? ' Fall' : ' F\u00e4lle') + ' ohne passende Referenzrate (Spalte o. Ref.); der Erwartungswert ist dort unvollst\u00e4ndig. '
       : 'Alle F\u00e4lle konnten einer Referenzrate zugeordnet werden (o. Ref. = 0). ';
+    if (outcomeMissTotal) exec += 'Achtung: ' + outcomeMissTotal + ' Nennerfall/-fälle ohne Austrittsentscheid; Rate und SMR sind deshalb gesperrt. ';
     if (verzug) exec += 'Das letzte Quartal (' + qs[qs.length - 1] + ') enth\u00e4lt deutlich weniger Austritte als die Vorquartale, vermutlich Kodierverzug; die Raten sind entsprechend vorl\u00e4ufig. ';
     exec += 'Alle Markierungen sind Pr\u00fcfhinweise, kein Qualit\u00e4tsurteil.';
 
@@ -316,7 +903,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     html += '<h2>CH-IQI-Indikatoren (' + results.length + ')</h2>' +
       '<table><thead><tr><th>Indikator</th><th class="num">F\u00e4lle (n)</th><th class="num">Todesf\u00e4lle (O)</th>' +
       '<th class="num">Rate</th><th class="num">Erwartete Rate</th><th class="num">O/E (SMR)</th>' +
-      '<th class="num">z</th><th class="num">o. Ref.</th><th>Einordnung</th></tr></thead>' +
+      '<th class="num">z</th><th class="num">o. Ref.</th><th class="num">Outcome fehlt</th><th>Einordnung</th></tr></thead>' +
       results.map(function (r, i) {
         var a = ass[i];
         return '<tr><td><b>' + esc(r.id) + '</b> ' + esc(r.label) + '</td>' +
@@ -326,9 +913,12 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
           '<td class="num">' + (r.smr == null ? '\u2013' : r.smr.toFixed(2)) + '</td>' +
           '<td class="num">' + (a.z == null ? '\u2013' : a.z.toFixed(1)) + '</td>' +
           '<td class="num">' + (r.refMisses || 0) + '</td>' +
+          '<td class="num">' + (r.outcomeMisses || 0) + '</td>' +
           '<td>' + a.label + '</td></tr>';
       }).join('') + '</table>' +
       '<p class="rep-note">Voraussetzungen f\u00fcr die Einordnung: mindestens 10 F\u00e4lle und mindestens 3 erwartete Ereignisse; Signifikanzgrenze |z| &gt; 1.96. o. Ref. z\u00e4hlt F\u00e4lle ohne passende Alters-/Geschlechts-Referenzrate (sollen 0 sein).</p>';
+
+    html += buildWorkbenchReportHtml();
 
     html += '<h2>Kodierstand: Austritte nach Quartal</h2>' +
       '<table><thead><tr><th>Quartal</th><th class="num">Austritte</th></tr></thead>' +
@@ -360,6 +950,26 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     document.getElementById('report').innerHTML = html;
   }
   window.__chiqiReportTest = function (data) { LAST = data; buildReport(); return document.getElementById('report').innerHTML; };
+  document.getElementById('btnCockpit').addEventListener('click', function () {
+    if (!LAST) return;
+    // sessionStorage ist absichtlich flüchtig und vermeidet Kennzahlen in URL,
+    // Server-Logs oder dauerhaftem Browser-Speicher. Beide Apps laufen unter
+    // demselben Origin und der Wechsel bleibt im selben Browser-Tab.
+    var payload = {
+      version: 1,
+      indicators: LAST.results.map(function (r) {
+        return { id: r.id, n: r.n, O: r.O, E: r.E, smr: r.smr };
+      })
+    };
+    try {
+      sessionStorage.setItem(COCKPIT_TRANSFER_KEY, JSON.stringify(payload));
+    } catch (e) {
+      statusEl.innerHTML = '<span class="err">✘ Die aggregierten Kennzahlen konnten in diesem Browser nicht für das Cockpit bereitgestellt werden.</span>';
+      return;
+    }
+    if (window.top !== window.self) window.top.location.hash = 'cockpit';
+    else window.location.assign('../cockpit.html');
+  });
   document.addEventListener('click', function (e) {
     if (e.target && e.target.id === 'btnPdf') {
       buildReport();

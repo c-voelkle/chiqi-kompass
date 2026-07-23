@@ -36,7 +36,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var ENGINE_VERSION = '0.5.1';
+  var ENGINE_VERSION = '0.6.0';
 
   // ------------------------------------------------------ SQL-Mini-Parser --
 
@@ -397,7 +397,7 @@
     if (spec.indexOf('s_sex') !== -1)
       return function (row) { return row.Sex == null ? null : (Number(row.Sex) === 2 ? 1 : 0); };
     if (spec.indexOf('s_avor') !== -1)
-      return function (row) { return Number(row.AVor) === 6 ? 1 : 0; };
+      return function (row) { return row.AVor == null ? null : (Number(row.AVor) === 6 ? 1 : 0); };
     var m = /^str_detect\((HD|NebDia|AllDia|AllBeh)\s*,\s*'([^']*)'\)$/.exec(spec.trim());
     if (m) {
       var col = m[1];
@@ -431,7 +431,7 @@
       for (var i = 0; i < years.length; i++) if (jahr != null && years[i] <= jahr) pick = years[i];
       return pick === null ? years[years.length - 1] : pick;
     }
-    return function (row) {
+    var scorer = function (row) {
       var terms = models[pickYear(row.Jahr != null ? Number(row.Jahr) : null)];
       var lp = 0;
       for (var i = 0; i < terms.length; i++) {
@@ -441,6 +441,10 @@
       }
       return 1 / (1 + Math.exp(-lp));
     };
+    scorer.modelYear = function (row) {
+      return pickYear(row && row.Jahr != null ? Number(row.Jahr) : null);
+    };
+    return scorer;
   }
 
   // ------------------------------------------ fCHIQI-Evaluator (R-Dialekt) --
@@ -716,11 +720,11 @@
   function altEGrp(alter) { return Math.floor(alter / 5) + 1; }
 
   /**
-   * computeIndicator(cases, indicator) -> Ergebnis
-   * indicator: { id, label, sqlF, sqlM, refStrata:[{altEGrp,sex,pCH}], refJahr }
-   * Nur ausgetretene Fälle werden gezählt (CH-IQI zählt Austritte).
+   * Erstellt eine gemeinsame fallbezogene Auswertung. Dieselbe Auswertung
+   * speist sowohl die Aggregation als auch die lokale QM-Fallreview-Ansicht.
+   * Dadurch sind n, O und E jederzeit auf die angezeigten Fälle rückführbar.
    */
-  function computeIndicator(cases, ind, lists) {
+  function createIndicatorEvaluator(ind, lists) {
     var fF = compile(ind.sqlF, lists), fM = compile(ind.sqlM, lists);
     var refMap = {}, refGrpBySex = {};
     (ind.refStrata || []).forEach(function (s) {
@@ -731,16 +735,14 @@
     });
     var glmP = ind.glm ? compileGlm(ind.glm) : null;
 
-    var n = 0, O = 0, E = 0, Eglm = 0, refMisses = 0, glmMisses = 0;
-    var faelleF = [];
-    cases.forEach(function (c) {
-      if (c.nochHospitalisiert) return;
+    return function (c, caseIndex) {
       var row = caseToRow(c);
-      if (!fF(row)) return;
-      n++;
-      faelleF.push(c.fallId);
-      if (fM(row)) O++;
-      if (ind.refStrata && row.AltE != null && row.Sex != null) {
+      var ruleMatch = fF(row);
+      var denominator = !c.nochHospitalisiert && ruleMatch;
+      var numerator = denominator && fM(row);
+      var expectedAgeSex = null, expectedGlm = null, refGroup = null;
+
+      if (denominator && ind.refStrata && row.AltE != null && row.Sex != null) {
         // Offene Randgruppen: die BAG-Referenz endet oben bei 95-99 (bzw.
         // beginnt bei der ersten belegten Gruppe). Ein Hochbetagter >= 100
         // ergibt sonst eine Gruppe ohne Referenzrate und wurde faelschlich
@@ -750,29 +752,97 @@
         var g = refGrpBySex[row.Sex], grp = altEGrp(row.AltE);
         if (g) { if (grp > g.max) grp = g.max; else if (grp < g.min) grp = g.min; }
         var p = refMap[grp + '|' + row.Sex];
-        if (p !== undefined) E += p; else refMisses++;
+        refGroup = grp + '|' + row.Sex;
+        if (p !== undefined) expectedAgeSex = p;
       }
-      if (glmP) {
-        var pg = glmP(row);
-        if (pg != null) Eglm += pg; else glmMisses++;
+      if (denominator && glmP) {
+        expectedGlm = glmP(row);
       }
+      var expected = denominator ? (glmP ? expectedGlm : expectedAgeSex) : null;
+      var outcomeMissing = denominator && row.EAus == null;
+      var expectedMissing = denominator && expected == null;
+      var reason = denominator ? 'included'
+        : (c.nochHospitalisiert ? 'still_hospitalized' : 'definition_not_matched');
+
+      return {
+        caseIndex: caseIndex,
+        caseId: c.fallId,
+        burnr: c.burnr,
+        denominator: denominator,
+        numerator: numerator,
+        expected: expected,
+        expectedAgeSex: denominator ? expectedAgeSex : null,
+        adjustment: glmP ? 'GLM (differenziertes Risikomodell)'
+                         : (ind.refStrata ? 'Alter/Geschlecht' : null),
+        modelYear: denominator && glmP && glmP.modelYear ? glmP.modelYear(row) : null,
+        refGroup: denominator ? refGroup : null,
+        expectedMissing: expectedMissing,
+        outcomeMissing: outcomeMissing,
+        ruleMatch: ruleMatch,
+        reason: reason,
+        qualityFlags: [
+          outcomeMissing ? 'OUTCOME_MISSING' : null,
+          expectedMissing ? 'EXPECTED_MISSING' : null
+        ].filter(Boolean)
+      };
+    };
+  }
+
+  function evaluateIndicatorCases(cases, ind, lists) {
+    var evaluate = createIndicatorEvaluator(ind, lists);
+    return cases.map(function (c, i) { return evaluate(c, i); });
+  }
+
+  /**
+   * computeIndicator(cases, indicator) -> Ergebnis
+   * indicator: { id, label, sqlF, sqlM, refStrata:[{altEGrp,sex,pCH}], refJahr }
+   * Nur ausgetretene Fälle werden gezählt (CH-IQI zählt Austritte).
+   */
+  function computeIndicator(cases, ind, lists) {
+    var evaluations = evaluateIndicatorCases(cases, ind, lists);
+    var n = 0, O = 0, EPartial = 0, refMisses = 0, outcomeMisses = 0;
+    var faelleF = [], modelYears = {};
+    evaluations.forEach(function (ev) {
+      if (!ev.denominator) return;
+      n++;
+      faelleF.push(ev.caseId);
+      if (ev.numerator) O++;
+      if (ev.outcomeMissing) outcomeMisses++;
+      if (ev.expectedMissing) refMisses++;
+      else if (ev.expected != null) EPartial += ev.expected;
+      if (ev.modelYear != null) modelYears[ev.modelYear] = true;
     });
 
-    // Massgebliches E: GLM, falls differenziertes Risikomodell vorliegt
-    // (BAG-FAQ V5.5: ersetzt die reine Alter/Geschlecht-Adjustierung).
-    var Eeff = glmP ? Eglm : (ind.refStrata ? E : null);
+    // Ein Erwartungswert aus nur einem Teil des Nenners würde den SMR
+    // systematisch verzerren. Deshalb wird E/SMR bei jeder Lücke gesperrt.
+    var hasExpected = !!ind.refStrata || !!ind.glm;
+    var Eeff = hasExpected && refMisses === 0 ? EPartial : null;
+    var outcomeComplete = outcomeMisses === 0;
     var res = {
       id: ind.id, label: ind.label,
       n: n, O: O,
-      rate: n > 0 ? O / n : null,
+      rate: n > 0 && outcomeComplete ? O / n : null,
       E: Eeff,
-      smr: Eeff != null && Eeff > 0 ? O / Eeff : null,
-      adjustierung: glmP ? 'GLM (differenziertes Risikomodell)' : (ind.refStrata ? 'Alter/Geschlecht' : null),
-      EAlterGeschlecht: ind.refStrata ? E : null,
+      EPartial: hasExpected ? EPartial : null,
+      smr: Eeff != null && Eeff > 0 && outcomeComplete ? O / Eeff : null,
+      adjustierung: ind.glm ? 'GLM (differenziertes Risikomodell)' : (ind.refStrata ? 'Alter/Geschlecht' : null),
+      EAlterGeschlecht: null,
       refJahr: ind.refJahr || null,
-      refMisses: glmP ? glmMisses : refMisses,
+      refMisses: refMisses,
+      outcomeMisses: outcomeMisses,
+      modelYears: Object.keys(modelYears).map(Number).sort(function (a, b) { return a - b; }),
+      dataComplete: refMisses === 0 && outcomeMisses === 0,
       fallIds: faelleF
     };
+    if (ind.refStrata) {
+      var ageSexSum = 0, ageSexMisses = 0;
+      evaluations.forEach(function (ev) {
+        if (!ev.denominator) return;
+        if (ev.expectedAgeSex == null) ageSexMisses++;
+        else ageSexSum += ev.expectedAgeSex;
+      });
+      res.EAlterGeschlecht = ageSexMisses === 0 ? ageSexSum : null;
+    }
     return res;
   }
 
@@ -785,6 +855,8 @@
     compileGlm: compileGlm,
     compileFilter: compileFilter,
     caseToRow: caseToRow,
+    createIndicatorEvaluator: createIndicatorEvaluator,
+    evaluateIndicatorCases: evaluateIndicatorCases,
     computeIndicator: computeIndicator,
     computeAll: computeAll,
     altEGrp: altEGrp,
