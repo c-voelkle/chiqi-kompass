@@ -15,6 +15,17 @@ Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schrit
 Teilbare Direktlinks: `…/#cockpit`, `…/#spiges`, `…/#chiqi`.
 Unterseiten funktionieren auch standalone (zeigen dann einen Zurück-Link).
 
+## Unterjährigen BAG-Vergleich prüfen
+
+1. `…/#chiqi` öffnen und eine SpiGes-XML einlesen.
+2. **Mit BAG-Verlauf vergleichen** wählen.
+3. Im fokussierten Vergleichsmodus die passende Institution bestätigen.
+4. A1.1, B1.1 oder D1.1 wählen. Baseline 2019–2023, QIP 2024 und der
+   unterjährige Wert erscheinen als getrennte Vergleichspunkte.
+5. **Gesamtes Cockpit erkunden** öffnet bei Bedarf Radar, Funnel-Plots und
+   weitere Analysen. Der Radarfilter steuert nur das Radar, nicht den
+   unterjährigen Vergleich.
+
 ## Upload auf github.com (manuell)
 
 1. Falls noch vorhanden: alte `spiges_import_demo.html` im Repo löschen.
