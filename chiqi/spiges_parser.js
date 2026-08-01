@@ -257,6 +257,7 @@
             chop: attrs.behandlung_chop || null,
             beginn: parseSpigesDate(attrs.behandlung_beginn),
             seitigkeit: attrs.behandlung_seitigkeit || null,
+            auswaerts: attrs.behandlung_auswaerts || null,
             _attrs: attrs
           });
           this.meta.counts.behandlungen++;
@@ -296,6 +297,22 @@
    *  - austrittsentscheid (MS 1.5.V02): 5 = gestorben
    *  - Hauptdiagnose: Diagnose mit diagnose_id = 1 (sonst erste gelieferte)
    */
+  /**
+   * behandlung_auswaerts (SpiGes-Handbuch, FAQ Behandlungen):
+   *   1 = eigenes Krankenhausareal, anderer Betrieb
+   *   2 = ausserhalb eigenem Krankenhausareal, gleicher Betrieb
+   *   3 = ausserhalb eigenem Krankenhausareal, anderer Betrieb
+   *   9 = unbekannt
+   * Fremd erbracht im Sinne der Leistungszurechnung sind 1 und 3 (anderer
+   * Betrieb, andere BUR_GESV). 2 bleibt eine Leistung des eigenen Betriebs.
+   */
+  function istFremdErbracht(b) {
+    var v = b && b.auswaerts;
+    if (v == null) return false;
+    v = String(v).trim();
+    return v === '1' || v === '3';
+  }
+
   function finalizeCase(raw, builder) {
     var a = raw.admin || {};
     var eintrittIso = parseSpigesDate(a.eintrittsdatum);
@@ -353,6 +370,15 @@
       chops: raw.behandlungen.map(function (b) { return b.chop; }).filter(Boolean),
       // CHOP normalisiert (ohne Punkte) für den Abgleich mit Indikator-Codelisten
       chopsNorm: raw.behandlungen.map(function (b) {
+        return b.chop ? b.chop.replace(/\./g, '') : null;
+      }).filter(Boolean),
+      // Nur Leistungen des eigenen Betriebs (ohne behandlung_auswaerts 1 oder 3)
+      chopsEigen: raw.behandlungen.filter(function (b) {
+        return !istFremdErbracht(b);
+      }).map(function (b) { return b.chop; }).filter(Boolean),
+      chopsNormEigen: raw.behandlungen.filter(function (b) {
+        return !istFremdErbracht(b);
+      }).map(function (b) {
         return b.chop ? b.chop.replace(/\./g, '') : null;
       }).filter(Boolean),
       behandlungen: raw.behandlungen,
@@ -468,6 +494,7 @@
     parseSpiGes: parseSpiGes,
     summarizeCases: summarizeCases,
     parseSpigesDate: parseSpigesDate,
+    istFremdErbracht: istFremdErbracht,
     PARSER_VERSION: PARSER_VERSION
   };
 });

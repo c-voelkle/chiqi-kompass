@@ -317,14 +317,66 @@
     return values[Math.floor(values.length / 2)];
   }
 
+  // Gliederung der Prüfungen im Nachweis. Die Reihenfolge bestimmt die Anzeige.
+  var CHECK_GROUPS = ['Datengrundlage', 'Kodierregeln', 'Indikatoren', 'Nachweis'];
+
+  var CHECK_GROUP_BY_ID = {
+    spiges_format: 'Datengrundlage',
+    cases: 'Datengrundlage',
+    case_ids: 'Datengrundlage',
+    required_fields: 'Datengrundlage',
+    period: 'Datengrundlage',
+    coding_maturity: 'Datengrundlage',
+    parser_warnings: 'Datengrundlage',
+    method_vintage: 'Indikatoren',
+    stillbirths: 'Kodierregeln',
+    newborn_birth_result: 'Kodierregeln',
+    waiting_cases: 'Kodierregeln',
+    external_procedures: 'Kodierregeln',
+    case_merge: 'Kodierregeln',
+    file_hash: 'Nachweis'
+  };
+
+  function groupForCheck(id) {
+    if (CHECK_GROUP_BY_ID[id]) return CHECK_GROUP_BY_ID[id];
+    if (/^(trace|adjustment|power|model_fallback)_/.test(id)) return 'Indikatoren';
+    return 'Datengrundlage';
+  }
+
   function addCheck(checks, id, label, status, detail, blocking) {
     checks.push({
       id: id,
       label: label,
+      group: groupForCheck(id),
       status: status,
       detail: detail,
       blocking: !!blocking
     });
+  }
+
+  // Alle Diagnosekodes eines Falls, ohne Punkte und in Grossschreibung.
+  function diagnoseKodes(c) {
+    var out = [];
+    if (c.hauptdiagnose) out.push(c.hauptdiagnose);
+    (c.nebendiagnosen || []).forEach(function (d) { if (d) out.push(d); });
+    (c.diagnosen || []).forEach(function (d) {
+      var k = d && (d.kode || d);
+      if (k) out.push(k);
+    });
+    return out.map(function (k) { return String(k).replace(/\./g, '').toUpperCase(); });
+  }
+
+  function vitalstatus(c) {
+    var n = c && c.neugeborene;
+    if (!n || n.vitalstatus == null) return null;
+    return String(n.vitalstatus).trim();
+  }
+
+  // Totgeburt = Neugeborenen-Zusatzdatensatz mit Vitalstatus 0 (BFS-Variable V2201).
+  // Für diese Fälle wird gemäss Kodierungshandbuch SD1605a keine Kodierung
+  // vorgenommen; eine fehlende Hauptdiagnose ist regelkonform.
+  function isTotgeburt(c) {
+    return vitalstatus(c) === '0';
   }
 
   function periodFromCases(cases) {
@@ -367,19 +419,141 @@
       missingIds || duplicateIds ? 'fail' : 'pass',
       missingIds + ' fehlend, ' + duplicateIds + ' doppelt je Standort.', true);
 
-    var missingHd = 0, invalidAge = 0, missingOutcome = 0, missingSex = 0;
+    var missingHd = 0, invalidAge = 0, implausibleAge = 0;
+    var missingOutcome = 0, missingSex = 0, invalidSex = 0;
+    var stillbirths = 0, stillbirthsCoded = 0, stillbirthsNotDeceased = 0, stillbirthsZ38 = 0;
+    var liveBirths = 0, liveBirthsNoZ38 = 0;
+    var waitingCases = 0, waitingWrongTarif = 0;
     completed.forEach(function (c) {
-      if (!c.hauptdiagnose) missingHd++;
+      var totgeburt = isTotgeburt(c);
+      var kodes = diagnoseKodes(c);
+      var hatZ38 = kodes.some(function (k) { return k.indexOf('Z38') === 0; });
+      if (totgeburt) {
+        stillbirths++;
+        if (c.hauptdiagnose || (c.diagnosen || []).length) stillbirthsCoded++;
+        if (c.austrittsentscheid && c.austrittsentscheid !== '5') stillbirthsNotDeceased++;
+        if (hatZ38) stillbirthsZ38++;
+      } else if (vitalstatus(c) === '1') {
+        liveBirths++;
+        if (!hatZ38) liveBirthsNoZ38++;
+      }
+      // Wartepatienten: eigener administrativer Fall, HD Z75.8, tarif 7 (G51)
+      var hdNorm = c.hauptdiagnose
+        ? String(c.hauptdiagnose).replace(/\./g, '').toUpperCase() : null;
+      if (hdNorm === 'Z758') {
+        waitingCases++;
+        if (!(c._admin && String(c._admin.tarif || '').trim() === '7')) waitingWrongTarif++;
+      }
+      // Totgeburten: keine Hauptdiagnose erwartet (BFS-Kodierungshandbuch SD1605a)
+      if (!c.hauptdiagnose && !totgeburt) missingHd++;
       var rawAge = c._admin && c._admin.alter;
       if (c.alterJahre == null || c.alterJahre < 0 || c.alterJahre > 135 ||
           (rawAge != null && !/^\d+$/.test(String(rawAge)))) invalidAge++;
+      else if (c.alterJahre > 120) implausibleAge++;   // BFS-Plausibilisierung A1121
       if (!c.austrittsentscheid) missingOutcome++;
-      if (!c.geschlecht) missingSex++;
+      if (!c.geschlecht) {
+        var rawSex = c._admin && c._admin.geschlecht;
+        // A1101: gueltig sind ausschliesslich 1 und 2. 3 bis 9 sind ungueltig,
+        // nicht fehlend, und muessen anders korrigiert werden.
+        if (rawSex == null || String(rawSex).trim() === '') missingSex++; else invalidSex++;
+      }
     });
+    var requiredHardFail = missingHd || invalidAge || missingOutcome || missingSex || invalidSex;
     addCheck(checks, 'required_fields', 'Pflichtfelder der Austritte',
-      missingHd || invalidAge || missingOutcome || missingSex ? 'fail' : 'pass',
+      requiredHardFail ? 'fail' : (implausibleAge ? 'warn' : 'pass'),
       missingHd + ' ohne Hauptdiagnose, ' + invalidAge + ' mit ungültigem Alter, ' +
-        missingSex + ' ohne Geschlecht, ' + missingOutcome + ' ohne Austrittsentscheid.', true);
+        missingSex + ' ohne Geschlecht, ' + invalidSex + ' mit ungültigem Geschlecht, ' +
+        missingOutcome + ' ohne Austrittsentscheid.' +
+        (implausibleAge
+          ? ' ' + implausibleAge + ' mit Alter über 120 Jahren (BFS-Plausibilisierung A1121).'
+          : '') +
+        (stillbirths
+          ? ' ' + stillbirths + ' Totgeburt(en) sind bei der Hauptdiagnose ausgenommen (SD1605a).'
+          : ''), true);
+
+    if (stillbirths) {
+      addCheck(checks, 'stillbirths', 'Totgeburten',
+        stillbirthsCoded || stillbirthsNotDeceased ? 'warn' : 'pass',
+        stillbirths + ' Fall/Fälle mit Vitalstatus 0 (Totgeburt). Gemäss BFS-Kodierungshandbuch ' +
+          'SD1605a wird für das Kind nur ein Minimaldatensatz ohne Kodierung geführt; diese Fälle ' +
+          'sind von der Hauptdiagnose-Prüfung ausgenommen.' +
+          (stillbirthsCoded ? ' ' + stillbirthsCoded + ' davon tragen dennoch Diagnosekodes.' : '') +
+          (stillbirthsNotDeceased ? ' ' + stillbirthsNotDeceased + ' davon ohne Austrittsentscheid 5 (gestorben).' : ''),
+        false);
+    }
+
+    // Geburtsresultat Z38.- (BFS-Plausibilisierungsregel D1810): Lebendgeborene
+    // sollen einen Z38.--Kode tragen, Totgeborene duerfen keinen tragen.
+    if (liveBirths || stillbirths) {
+      addCheck(checks, 'newborn_birth_result', 'Geburtsresultat der Neugeborenen',
+        liveBirthsNoZ38 || stillbirthsZ38 ? 'warn' : 'pass',
+        liveBirths + ' Lebendgeburt(en) und ' + stillbirths + ' Totgeburt(en) im File. ' +
+          (liveBirthsNoZ38 ? liveBirthsNoZ38 + ' Lebendgeburt(en) ohne Z38.--Kode. ' : '') +
+          (stillbirthsZ38 ? stillbirthsZ38 + ' Totgeburt(en) mit Z38.--Kode, laut Regel D1810 unzulässig. ' : '') +
+          (liveBirthsNoZ38 || stillbirthsZ38 ? '' : 'Die Kodierung des Geburtsresultats ist konsistent.'),
+        false);
+    }
+
+    // Wartepatienten (Kodierungshandbuch G51): eigener administrativer Fall mit
+    // Hauptdiagnose Z75.8, nicht ueber DRG abgerechnet (tarif 7).
+    if (waitingCases) {
+      addCheck(checks, 'waiting_cases', 'Wartepatienten',
+        'warn',
+        waitingCases + ' Austritt(e) mit Hauptdiagnose Z75.8 (Wartepatientin oder Wartepatient nach G51)' +
+          (waitingWrongTarif ? ', davon ' + waitingWrongTarif + ' ohne tarif 7' : '') +
+          '. Diese Fälle sind administrativ und ohne stationäre Behandlungsindikation, zählen aktuell aber ' +
+          'in Fallzahlen und Indikatornennern mit.',
+        false);
+    }
+
+    // Auswärts erbrachte Leistungen (Kodierungshandbuch G51/D15, SpiGes-Variable
+    // behandlung_auswaerts): 1 und 3 bezeichnen einen anderen Betrieb, 2 den
+    // eigenen Betrieb an einem anderen Standort, 9 ist unbekannt.
+    var extFremd = 0, extEigen = 0, extUnklar = 0, extFaelle = 0;
+    completed.forEach(function (c) {
+      var fremd = 0;
+      (c.behandlungen || []).forEach(function (b) {
+        var v = b.auswaerts == null ? null : String(b.auswaerts).trim();
+        if (v === '1' || v === '3') { extFremd++; fremd++; }
+        else if (v === '2') extEigen++;
+        else if (v === '9') { extUnklar++; fremd++; }
+      });
+      if (fremd) extFaelle++;
+    });
+    addCheck(checks, 'external_procedures', 'Auswärts erbrachte Leistungen',
+      extFremd || extUnklar ? 'warn' : 'pass',
+      (extFremd || extUnklar || extEigen)
+        ? extFremd + ' CHOP-Kode(s) in ' + extFaelle + ' Austritt(en) sind als Leistung eines anderen ' +
+          'Betriebs gekennzeichnet, ' + extEigen + ' als Leistung des eigenen Betriebs an einem anderen ' +
+          'Standort, ' + extUnklar + ' unbekannt. Diese Kodes fliessen unverändert in die Prozedurbedingungen ' +
+          'der Indikatoren ein und können prozedurbasierte Indikatoren dem falschen Leistungserbringer zurechnen.'
+        : 'Keine Behandlung ist über behandlung_auswaerts als auswärts erbracht gekennzeichnet.',
+      false);
+
+    // Fallzusammenführung (Kodierungshandbuch G51): nur der zusammengeführte Fall
+    // ist zu übermitteln, Wiedereintritte werden über grund_wiedereintritt markiert.
+    var reEpisoden = 0, reOhneGrund = 0, reFaelle = 0;
+    cases.forEach(function (c) {
+      var n = 0;
+      (c.patientenbewegungen || []).forEach(function (e) {
+        if (e.episode_art != null && String(e.episode_art).trim() === '2') {
+          reEpisoden++; n++;
+          if (!e.grund_wiedereintritt) reOhneGrund++;
+        }
+      });
+      if (n) reFaelle++;
+    });
+    addCheck(checks, 'case_merge', 'Fallzusammenführung und Wiedereintritte',
+      reOhneGrund ? 'warn' : 'pass',
+      (reEpisoden
+        ? reEpisoden + ' Wiedereintrittsepisode(n) in ' + reFaelle + ' Fall/Fällen, davon ' + reOhneGrund +
+          ' ohne Angabe zum Grund des Wiedereintritts. '
+        : 'Keine Wiedereintrittsepisoden im File. ') +
+        'Nach Kodierungshandbuch G51 ist bei einer Fallzusammenführung nur der zusammengeführte Fall zu ' +
+        'übermitteln. Ob getrennt gelieferte Aufenthalte zusammenzuführen wären, ist ohne Patientenidentifikator ' +
+        'aus dem File nicht prüfbar; bei unterjährigen Lieferungen vor der Fallzusammenführung sind die Nenner ' +
+        'deshalb tendenziell zu hoch.',
+      false);
 
     addCheck(checks, 'period', 'Eindeutige Auswertungsperiode',
       period.years.length <= 1 ? 'pass' : 'fail',
@@ -483,6 +657,17 @@
     if (!fileHash) addCheck(checks, 'file_hash', 'SHA-256 der Eingabedatei', 'warn',
       'In diesem Browser konnte kein Datei-Hash erzeugt werden.', false);
     else addCheck(checks, 'file_hash', 'SHA-256 der Eingabedatei', 'pass', fileHash, false);
+    // Stabil nach Gruppe sortieren, damit Protokoll, Bericht und Export
+    // dieselbe Gliederung zeigen wie die Oberfläche.
+    checks = checks.map(function (c, i) { return { c: c, i: i }; })
+      .sort(function (a, b) {
+        var ga = CHECK_GROUPS.indexOf(a.c.group), gb = CHECK_GROUPS.indexOf(b.c.group);
+        if (ga === -1) ga = CHECK_GROUPS.length;
+        if (gb === -1) gb = CHECK_GROUPS.length;
+        return ga - gb || a.i - b.i;
+      })
+      .map(function (x) { return x.c; });
+
     var failCount = checks.filter(function (c) { return c.status === 'fail'; }).length;
     var warningCount = checks.filter(function (c) { return c.status === 'warn'; }).length;
     var verdict = failCount ? 'nicht_interpretierbar' : (warningCount ? 'mit_warnungen' : 'gueltig');
@@ -511,9 +696,11 @@
         calculationPath: 'BAG-sCHIQI SQL-Dialekt, lokal ausgewertet',
         indicators: indicatorProtocols
       },
+      // Bewusst ohne group und in einer von der Anzeige unabhängigen Reihenfolge:
+      // Die Nachweis-ID soll am Prüfinhalt hängen, nicht an der Gliederung.
       checks: checks.map(function (c) {
         return { id: c.id, status: c.status, blocking: c.blocking, detail: c.detail };
-      }),
+      }).sort(function (a, b) { return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); }),
       verdict: verdict
     };
     var fingerprint = await sha256Text(stableStringify(canonical));
@@ -770,6 +957,8 @@
     STORAGE_KEY: STORAGE_KEY,
     PROJECT_SCHEMA: PROJECT_SCHEMA,
     INDICATOR_META: INDICATOR_META,
+    CHECK_GROUPS: CHECK_GROUPS,
+    groupForCheck: groupForCheck,
     REVIEW_CLASSES: REVIEW_CLASSES,
     WORKFLOW_STATUSES: WORKFLOW_STATUSES,
     stableStringify: stableStringify,

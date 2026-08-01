@@ -143,6 +143,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   .protocol-banner.fail{background:#fce8e6;border:1px solid #efc2be;color:#8e190f}
   .protocol-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.76rem;overflow-wrap:anywhere}
   .check-pass{color:var(--gruen);font-weight:700}.check-warn{color:var(--orange);font-weight:700}.check-fail{color:var(--rot);font-weight:700}
+  .check-group th{background:#f2f4f6;text-align:left;font-size:.9rem;letter-spacing:.02em;padding-top:.6rem}
   .save-state{font-size:.76rem;color:#52697f;min-height:1.1rem}
   @media(max-width:760px){
     .wb-stats{grid-template-columns:repeat(2,1fr)}
@@ -627,11 +628,26 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     var bannerClass = p.verdict === 'gueltig' ? 'pass' : (p.verdict === 'mit_warnungen' ? 'warn' : 'fail');
     var verdictLabel = p.verdict === 'gueltig' ? 'Gültig' :
       (p.verdict === 'mit_warnungen' ? 'Gültig mit Hinweisen' : 'Nicht interpretierbar');
-    var checks = p.checks.map(function (c) {
+    function checkRow(c) {
       var mark = c.status === 'pass' ? '✓' : (c.status === 'warn' ? '!' : '✕');
       var label = c.status === 'pass' ? 'bestanden' : (c.status === 'warn' ? 'Hinweis' : 'nicht bestanden');
       return '<tr><td class="check-' + c.status + '">' + mark + ' ' + label + '</td><td><strong>' +
         esc(c.label) + '</strong><br><span class="hint">' + esc(c.detail) + '</span></td></tr>';
+    }
+    // Prüfungen nach Gruppe gliedern, unbekannte Gruppen hinten anhängen.
+    var groupOrder = (ChiqiQm.CHECK_GROUPS || []).slice();
+    p.checks.forEach(function (c) {
+      var g = c.group || 'Datengrundlage';
+      if (groupOrder.indexOf(g) === -1) groupOrder.push(g);
+    });
+    var checks = groupOrder.map(function (g) {
+      var inGroup = p.checks.filter(function (c) { return (c.group || 'Datengrundlage') === g; });
+      if (!inGroup.length) return '';
+      var open = inGroup.filter(function (c) { return c.status !== 'pass'; }).length;
+      return '<tr class="check-group"><th colspan="2">' + esc(g) +
+        ' <span class="hint">(' + inGroup.length + ' Prüfungen' +
+        (open ? ', ' + open + ' mit Befund' : '') + ')</span></th></tr>' +
+        inGroup.map(checkRow).join('');
     }).join('');
     var methods = p.method.indicators.map(function (i) {
       return '<tr><td><strong>' + esc(i.id) + '</strong><br><span class="hint">' + esc(i.label) + '</span></td>' +
@@ -822,7 +838,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     var failed = protocol.checks.filter(function (c) { return c.status !== 'pass'; });
     var checkRows = failed.length ? failed.map(function (c) {
       return '<tr><td>' + (c.status === 'fail' ? 'Nicht bestanden' : 'Hinweis') + '</td><td><b>' +
-        esc(c.label) + '</b><br><span class="rep-note">' + esc(c.detail) + '</span></td></tr>';
+        esc(c.label) + '</b> <span class="rep-note">(' + esc(c.group || 'Datengrundlage') + ')</span>' +
+        '<br><span class="rep-note">' + esc(c.detail) + '</span></td></tr>';
     }).join('') : '<tr><td>Bestanden</td><td>Alle automatischen Prüfungen ohne Hinweis.</td></tr>';
     var methodRows = protocol.method.indicators.map(function (i) {
       return '<tr><td><b>' + esc(i.id) + '</b></td><td>' + esc(i.adjustment || '–') + '</td>' +
