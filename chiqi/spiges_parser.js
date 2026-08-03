@@ -1,7 +1,7 @@
 /*!
  * SpiGes-Parser für CH-IQI Kompass
  * ---------------------------------
- * Liest SpiGes-Daten-Files (BFS, XML Format 1.4/1.5) und erzeugt eine
+ * Liest SpiGes-Daten-Files (BFS, XML Format 1.4 bis 1.6) und erzeugt eine
  * normalisierte, fallbasierte Datenstruktur als Grundlage für die
  * CH-IQI-Indikatorberechnung.
  *
@@ -19,6 +19,9 @@
  * Quellen:
  *  - BFS: «SpiGes XML Format 1.5 - Beschreibung der XML-Datei für den
  *    Datenimport in die SpiGes-Plattform», 08.08.2025 (do-d-14.04-spiges-b)
+ *  - BFS: «Variablenliste SpiGes-Erhebung», Version 1.6 vom 15.07.2026
+ *    (do-t-14.04-spiges-VL.xlsx); die Änderungen gegenüber 1.5 betreffen
+ *    keine vom CH-IQI-Kompass gelesene XML-Struktur.
  *  - SpiGesXML (R-Paket, Fachstelle für Statistik Kt. SG):
  *    https://swissstatsr.org/SpiGesXML/ (Node-/Variablennamen, XSD-Referenzen)
  *
@@ -33,7 +36,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var PARSER_VERSION = '0.1.0';
+  var PARSER_VERSION = '0.2.0';
 
   // Namespaces gemäss BFS-Spezifikation
   var NS_V15 = 'http://www.bfs.admin.ch/xmlns/gvs/spiges-data';        // ab 1.5 ohne Versionssuffix
@@ -65,7 +68,7 @@
     return i === -1 ? name : name.slice(i + 1);
   }
 
-  // SpiGes-Datumsformate (XSD v1.5):
+  // SpiGes-Datumsformate (XSD v1.5; gemäss Variablenliste v1.6 unverändert):
   //  - eintritts-/austrittsdatum:  yyyymmdd oder yyyymmddhh   (8 / 10-stellig)
   //  - behandlung_beginn:          yyyymmdd oder yyyymmddhhmm (8 / 12-stellig)
   //  - episode_beginn/-ende:       yyyymmddhh                 (10-stellig)
@@ -204,8 +207,8 @@
                    attrs.xmlns.indexOf(NS_PREFIX_VERSIONED) === 0;
           if (!ok) this.warn('Unbekannter Namespace: ' + attrs.xmlns);
         }
-        if (attrs.version && ['1.4', '1.5'].indexOf(attrs.version) === -1) {
-          this.warn('Formatversion "' + attrs.version + '". Der Parser ist für 1.4/1.5 ausgelegt.');
+        if (attrs.version && ['1.4', '1.5', '1.6'].indexOf(attrs.version) === -1) {
+          this.warn('Formatversion "' + attrs.version + '". Der Parser ist für 1.4, 1.5 und 1.6 ausgelegt.');
         }
         break;
 

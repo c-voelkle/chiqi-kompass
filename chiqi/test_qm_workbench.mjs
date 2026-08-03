@@ -189,12 +189,26 @@ check('alle drei Fallspurprüfungen bestanden',
 check('kleine Fallzahlen werden als Hinweis, nicht als Qualitätsurteil markiert',
   protocol.method.indicators.every(x => x.assessment === 'noch nicht belastbar'));
 
+const protocolV16 = await Q.buildQualityProtocol({
+  file: null,
+  parsed: { cases, meta: Object.assign({}, parsed.meta, { formatVersion: '1.6', parserVersion: '0.2.0' }) },
+  results,
+  indicators,
+  caseRowsByIndicator: caseRows,
+  engineVersion: E.ENGINE_VERSION,
+  methodMeta: demo.meta
+});
+const formatV16 = protocolV16.checks.find(x => x.id === 'spiges_format');
+check('SpiGes 1.6 besteht die Formatprüfung',
+  formatV16 && formatV16.status === 'pass' && /Unterstützt: 1\.4, 1\.5 und 1\.6/.test(formatV16.detail),
+  formatV16 && formatV16.detail);
+
 // --- Totgeburten (BFS-Kodierungshandbuch SD1605a): keine Hauptdiagnose erwartet ---
 const sbCases = [
   mkCase({ fallId: 'sb-ok', hauptdiagnose: null, alterJahre: 0, alterTageU1: 0, austrittsentscheid: '5',
-    verstorben: true, neugeborene: { vitalstatus: '0', geburtsgewicht: '3200' }, _admin: { alter: '0' } }),
+    verstorben: true, neugeborene: { vitalstatus: '1', geburtsgewicht: '3200' }, _admin: { alter: '0' } }),
   mkCase({ fallId: 'live-ok', hauptdiagnose: 'Z380', alterJahre: 0, alterTageU1: 2,
-    neugeborene: { vitalstatus: '1', geburtsgewicht: '3400' }, _admin: { alter: '0' } }),
+    neugeborene: { vitalstatus: '0', geburtsgewicht: '3400' }, _admin: { alter: '0' } }),
   mkCase({ fallId: 'no-hd', hauptdiagnose: null, alterJahre: 70, _admin: { alter: '70' } })
 ];
 const sbProtocol = await Q.buildQualityProtocol({
@@ -216,7 +230,7 @@ check('Totgeburten-Prüfung ist nicht blockierend', sbCheck && sbCheck.blocking 
 const sbOddProtocol = await Q.buildQualityProtocol({
   file: null,
   parsed: { meta: parsed.meta, cases: [mkCase({ fallId: 'sb-coded', hauptdiagnose: 'P95', alterJahre: 0,
-    austrittsentscheid: '1', neugeborene: { vitalstatus: '0' }, _admin: { alter: '0' } })] },
+    austrittsentscheid: '1', neugeborene: { vitalstatus: '1' }, _admin: { alter: '0' } })] },
   results: [], indicators, caseRowsByIndicator: {},
   engineVersion: E.ENGINE_VERSION, methodMeta: demo.meta
 });
@@ -232,7 +246,6 @@ const structProtocol = await Q.buildQualityProtocol({
     mkCase({ fallId: 'ext-fremd', hauptdiagnose: 'I214', behandlungen: [
       { chop: '00.66', auswaerts: '3' }, { chop: '3608.11', auswaerts: null }] }),
     mkCase({ fallId: 'ext-eigen', hauptdiagnose: 'I214', behandlungen: [{ chop: '88.53', auswaerts: '2' }] }),
-    mkCase({ fallId: 'ext-unklar', hauptdiagnose: 'I214', behandlungen: [{ chop: '88.53', auswaerts: '9' }] }),
     mkCase({ fallId: 're-ok', hauptdiagnose: 'I214', patientenbewegungen: [
       { episode_art: '1' }, { episode_art: '2', grund_wiedereintritt: '1' }] }),
     mkCase({ fallId: 're-ohne-grund', hauptdiagnose: 'I214', patientenbewegungen: [{ episode_art: '2' }] })
@@ -242,16 +255,35 @@ const structProtocol = await Q.buildQualityProtocol({
 });
 const ext = structProtocol.checks.find(x => x.id === 'external_procedures');
 const merge = structProtocol.checks.find(x => x.id === 'case_merge');
-check('fremd erbrachte CHOP-Kodes werden gezählt und gewarnt',
-  ext && ext.status === 'warn' && /^1 CHOP-Kode\(s\) in 2 Austritt\(en\)/.test(ext.detail), ext && ext.detail);
+check('fremd erbrachte CHOP-Kodes werden gezählt, aber nicht als Befund gewarnt',
+  ext && ext.status === 'pass' && /^2 Austritt\(e\).*1 CHOP-Kode\(s\) eines anderen Betriebs/.test(ext.detail),
+  ext && ext.detail);
 check('eigener Betrieb an anderem Standort wird separat ausgewiesen',
-  ext && /1 als Leistung des eigenen Betriebs/.test(ext.detail), ext && ext.detail);
+  ext && /1 des eigenen Betriebs an einem anderen Standort/.test(ext.detail), ext && ext.detail);
+check('alle gelieferten CHOP-Kodes bleiben gemäss CH-IQI berücksichtigt',
+  ext && /alle gelieferten CHOP-Kodes unverändert/.test(ext.detail) &&
+  !/falschen Leistungserbringer/.test(ext.detail), ext && ext.detail);
 check('Wiedereintrittsepisoden werden gezählt',
   merge && /^2 Wiedereintrittsepisode\(n\) in 2 Fall\/Fällen, davon 1 /.test(merge.detail), merge && merge.detail);
 check('fehlender Wiedereintrittsgrund erzeugt eine Warnung',
   merge && merge.status === 'warn', merge && merge.status);
+check('Fallzusammenführung enthält keine pauschale Unterjahresverzerrung mehr',
+  merge && /angelieferten Datenstand/.test(merge.detail) &&
+  !/tendenziell zu hoch|unterjährigen Lieferungen/.test(merge.detail), merge && merge.detail);
 check('beide Strukturprüfungen sind nicht blockierend',
   ext && merge && ext.blocking === false && merge.blocking === false);
+
+const unknownExternalProtocol = await Q.buildQualityProtocol({
+  file: null,
+  parsed: { meta: parsed.meta, cases: [mkCase({ fallId: 'ext-unklar', hauptdiagnose: 'I214',
+    behandlungen: [{ chop: '88.53', auswaerts: '9' }] })] },
+  results: [], indicators, caseRowsByIndicator: {},
+  engineVersion: E.ENGINE_VERSION, methodMeta: demo.meta
+});
+const unknownExternal = unknownExternalProtocol.checks.find(x => x.id === 'external_procedures');
+check('unbekannte Auswärtszuordnung bleibt ein konkreter Hinweis',
+  unknownExternal && unknownExternal.status === 'warn' && /Wert 9 sollten fachlich geklärt/.test(unknownExternal.detail),
+  unknownExternal && unknownExternal.detail);
 
 const cleanProtocol = await Q.buildQualityProtocol({
   file: null,
@@ -273,9 +305,9 @@ const ruleProtocol = await Q.buildQualityProtocol({
     mkCase({ fallId: 'sex-fehlt', hauptdiagnose: 'I214', geschlecht: null, _admin: { alter: '70' } }),
     mkCase({ fallId: 'warte', hauptdiagnose: 'Z75.8', diagnosen: [{ kode: 'Z75.8' }], _admin: { alter: '70', tarif: '1' } }),
     mkCase({ fallId: 'lebend-ohne-z38', hauptdiagnose: 'P073', alterJahre: 0, diagnosen: [{ kode: 'P073' }],
-      neugeborene: { vitalstatus: '1' }, _admin: { alter: '0' } }),
+      neugeborene: { vitalstatus: '0' }, _admin: { alter: '0' } }),
     mkCase({ fallId: 'tot-mit-z38', hauptdiagnose: null, alterJahre: 0, diagnosen: [{ kode: 'Z380' }],
-      austrittsentscheid: '5', neugeborene: { vitalstatus: '0' }, _admin: { alter: '0' } })
+      austrittsentscheid: '5', neugeborene: { vitalstatus: '1' }, _admin: { alter: '0' } })
   ] },
   results: [], indicators, caseRowsByIndicator: {},
   engineVersion: E.ENGINE_VERSION, methodMeta: demo.meta

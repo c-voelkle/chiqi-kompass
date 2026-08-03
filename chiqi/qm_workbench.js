@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
   var STORAGE_KEY = 'chiqiKompass.qmProjects.v1';
   var SECRET_KEY = 'chiqiKompass.localReferenceKey.v1';
   var PROJECT_SCHEMA = 1;
@@ -372,11 +372,12 @@
     return String(n.vitalstatus).trim();
   }
 
-  // Totgeburt = Neugeborenen-Zusatzdatensatz mit Vitalstatus 0 (BFS-Variable V2201).
+  // SpiGes ab Datenjahr 2024: Vitalstatus 0 = Lebendgeburt, 1 = Totgeburt.
+  // Die frühere Medizinische Statistik verwendete die umgekehrte Belegung.
   // Für diese Fälle wird gemäss Kodierungshandbuch SD1605a keine Kodierung
   // vorgenommen; eine fehlende Hauptdiagnose ist regelkonform.
   function isTotgeburt(c) {
-    return vitalstatus(c) === '0';
+    return vitalstatus(c) === '1';
   }
 
   function periodFromCases(cases) {
@@ -401,10 +402,10 @@
     var checks = [];
     var completed = cases.filter(function (c) { return !c.nochHospitalisiert; });
     var period = periodFromCases(cases);
-    var formatOk = ['1.4', '1.5'].indexOf(parsed.meta.formatVersion) !== -1;
+    var formatOk = ['1.4', '1.5', '1.6'].indexOf(parsed.meta.formatVersion) !== -1;
     addCheck(checks, 'spiges_format', 'SpiGes-Format',
       formatOk ? 'pass' : 'fail',
-      'Erkannt: ' + (parsed.meta.formatVersion || 'unbekannt') + '. Unterstützt: 1.4 und 1.5.', true);
+      'Erkannt: ' + (parsed.meta.formatVersion || 'unbekannt') + '. Unterstützt: 1.4, 1.5 und 1.6.', true);
     addCheck(checks, 'cases', 'Gelieferte Fälle',
       cases.length ? 'pass' : 'fail',
       cases.length + ' Fälle, davon ' + completed.length + ' mit Austritt.', true);
@@ -433,7 +434,7 @@
         if (c.hauptdiagnose || (c.diagnosen || []).length) stillbirthsCoded++;
         if (c.austrittsentscheid && c.austrittsentscheid !== '5') stillbirthsNotDeceased++;
         if (hatZ38) stillbirthsZ38++;
-      } else if (vitalstatus(c) === '1') {
+      } else if (vitalstatus(c) === '0') {
         liveBirths++;
         if (!hatZ38) liveBirthsNoZ38++;
       }
@@ -474,7 +475,7 @@
     if (stillbirths) {
       addCheck(checks, 'stillbirths', 'Totgeburten',
         stillbirthsCoded || stillbirthsNotDeceased ? 'warn' : 'pass',
-        stillbirths + ' Fall/Fälle mit Vitalstatus 0 (Totgeburt). Gemäss BFS-Kodierungshandbuch ' +
+        stillbirths + ' Fall/Fälle mit Vitalstatus 1 (Totgeburt). Gemäss BFS-Kodierungshandbuch ' +
           'SD1605a wird für das Kind nur ein Minimaldatensatz ohne Kodierung geführt; diese Fälle ' +
           'sind von der Hauptdiagnose-Prüfung ausgenommen.' +
           (stillbirthsCoded ? ' ' + stillbirthsCoded + ' davon tragen dennoch Diagnosekodes.' : '') +
@@ -511,22 +512,25 @@
     // eigenen Betrieb an einem anderen Standort, 9 ist unbekannt.
     var extFremd = 0, extEigen = 0, extUnklar = 0, extFaelle = 0;
     completed.forEach(function (c) {
-      var fremd = 0;
+      var hatAuswaertsangabe = false;
       (c.behandlungen || []).forEach(function (b) {
         var v = b.auswaerts == null ? null : String(b.auswaerts).trim();
-        if (v === '1' || v === '3') { extFremd++; fremd++; }
-        else if (v === '2') extEigen++;
-        else if (v === '9') { extUnklar++; fremd++; }
+        if (v === '1' || v === '3') { extFremd++; hatAuswaertsangabe = true; }
+        else if (v === '2') { extEigen++; hatAuswaertsangabe = true; }
+        else if (v === '9') { extUnklar++; hatAuswaertsangabe = true; }
       });
-      if (fremd) extFaelle++;
+      if (hatAuswaertsangabe) extFaelle++;
     });
     addCheck(checks, 'external_procedures', 'Auswärts erbrachte Leistungen',
-      extFremd || extUnklar ? 'warn' : 'pass',
+      extUnklar ? 'warn' : 'pass',
       (extFremd || extUnklar || extEigen)
-        ? extFremd + ' CHOP-Kode(s) in ' + extFaelle + ' Austritt(en) sind als Leistung eines anderen ' +
-          'Betriebs gekennzeichnet, ' + extEigen + ' als Leistung des eigenen Betriebs an einem anderen ' +
-          'Standort, ' + extUnklar + ' unbekannt. Diese Kodes fliessen unverändert in die Prozedurbedingungen ' +
-          'der Indikatoren ein und können prozedurbasierte Indikatoren dem falschen Leistungserbringer zurechnen.'
+        ? extFaelle + ' Austritt(e) enthalten Angaben in behandlung_auswaerts: ' + extFremd +
+          ' CHOP-Kode(s) eines anderen Betriebs (Werte 1/3), ' + extEigen +
+          ' des eigenen Betriebs an einem anderen Standort (Wert 2), ' + extUnklar +
+          ' mit unbekannter Zuordnung (Wert 9). Gemäss CH-IQI werden alle gelieferten CHOP-Kodes ' +
+          'unverändert in den Prozedurbedingungen berücksichtigt; die Kennzeichnung dient der Transparenz ' +
+          'und verändert die Indikatorzuordnung nicht.' +
+          (extUnklar ? ' Behandlungen mit Wert 9 sollten fachlich geklärt werden.' : '')
         : 'Keine Behandlung ist über behandlung_auswaerts als auswärts erbracht gekennzeichnet.',
       false);
 
@@ -551,8 +555,8 @@
         : 'Keine Wiedereintrittsepisoden im File. ') +
         'Nach Kodierungshandbuch G51 ist bei einer Fallzusammenführung nur der zusammengeführte Fall zu ' +
         'übermitteln. Ob getrennt gelieferte Aufenthalte zusammenzuführen wären, ist ohne Patientenidentifikator ' +
-        'aus dem File nicht prüfbar; bei unterjährigen Lieferungen vor der Fallzusammenführung sind die Nenner ' +
-        'deshalb tendenziell zu hoch.',
+        'aus dem File nicht prüfbar. Die Auswertung übernimmt deshalb den vom Codier- und Abrechnungssystem ' +
+        'angelieferten Datenstand; daraus allein entsteht kein Qualitätsbefund.',
       false);
 
     addCheck(checks, 'period', 'Eindeutige Auswertungsperiode',
