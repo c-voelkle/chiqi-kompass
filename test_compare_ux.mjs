@@ -24,6 +24,17 @@ assert.doesNotMatch(cockpit, /\$\('r-view'\)\.addEventListener\('change',renderO
 assert.match(cockpit, /Diese Auswahl wirkt nur auf die Radartabelle\./);
 console.log('  ✔ Radar, Funnel und unterjähriger Vergleich sind entkoppelt');
 
+console.log('Test 2b: O/E und Funnel werden als verschiedene Fragen erklärt');
+assert.match(cockpit, /Zwei Ansichten, zwei verschiedene Fragen/);
+assert.match(cockpit, /Vergleichsmassstab: erwartete Ereignisse der gewählten Institution/);
+assert.match(cockpit, /Vergleichsmassstab: beobachteter Schweizer Gesamtwert, ohne Risikoadjustierung/);
+assert.match(cockpit, /id="funnel-reading"/);
+assert.match(cockpit, /Das ist kein Rechenfehler/);
+assert.match(cockpit, /function renderFunnelReading\(radar,point,p0\)/);
+assert.match(cockpit, /Diese Kombination ist möglich und kein Rechenfehler/);
+assert.match(cockpit, /Ein abweichendes Patientengut kann diesen Unterschied erklären/);
+console.log('  ✔ Vergleichsmassstäbe und gemeinsame Einordnung sind sichtbar');
+
 console.log('Test 3: Pilotumfang und Datenschutz');
 for (const pair of [
   ["A1_01", "A.1.1.M"],

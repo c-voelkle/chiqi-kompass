@@ -86,10 +86,22 @@ body:not(.has-own-transfer) .explorer-summary{display:none}
 .radar-view-control{display:flex;flex-direction:column;gap:3px}
 .radar-view-control select{padding:6px 10px;border:1px solid #d5d9de;border-radius:6px;font-size:13px}
 .radar-scope-note{font-size:11.5px;color:var(--text-secondary);align-self:center}
+.comparison-guide{background:#f8fafc;border:1px solid #cfdae6;border-radius:var(--radius);padding:16px 18px;margin-bottom:var(--gap)}
+.comparison-guide h2{font-size:15px;color:var(--bg-header);margin-bottom:10px}
+.comparison-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.comparison-question{background:#fff;border:1px solid #dfe5eb;border-radius:8px;padding:12px 14px}
+.comparison-question strong{display:block;font-size:13px;color:var(--text-primary);margin:3px 0 5px}
+.comparison-question p{font-size:12px;color:var(--text-secondary)}
+.view-kicker{display:inline-block;font-size:10.5px;font-weight:750;letter-spacing:.45px;text-transform:uppercase;color:#245494;background:#e7f0fb;border-radius:14px;padding:2px 8px}
+.comparison-caveat{font-size:12px;color:#5c4d1a;background:#fff8e6;border-left:4px solid var(--warn);padding:8px 10px;margin-top:10px;border-radius:4px}
+.view-reading{font-size:12px;color:#26394f;background:#eef5fb;border:1px solid #c9dceb;border-radius:7px;padding:10px 12px;margin-top:10px;line-height:1.55}
+.view-reading .reading-signals{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:5px}
+.signal-pill{display:inline-block;background:#fff;border:1px solid #c8d2dd;border-radius:15px;padding:2px 8px;font-weight:650}
 @media(max-width:700px){
   .own-controls{grid-template-columns:1fr}
   .own-steps{grid-template-columns:1fr}
   .own-field-row{align-items:stretch;flex-direction:column}
+  .comparison-guide-grid{grid-template-columns:1fr}
 }
 
 /* --- Demo-Aufbereitung --- */
@@ -178,6 +190,22 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   <details id="cockpit-explorer" class="explorer" open>
     <summary class="explorer-summary"><strong>Gesamtes Cockpit erkunden</strong> – Auffälligkeitsradar, Funnel-Plots und weitere Analysen</summary>
     <div id="explorer-body">
+  <section class="comparison-guide" aria-labelledby="comparison-guide-title">
+    <h2 id="comparison-guide-title">Zwei Ansichten, zwei verschiedene Fragen</h2>
+    <div class="comparison-guide-grid">
+      <article class="comparison-question">
+        <span class="view-kicker">1 · Primäre Triage</span>
+        <strong>O/E-Radar: Ist bei unserem Patientengut mehr oder weniger eingetreten als erwartet?</strong>
+        <p>Verglichen werden die beobachteten Ereignisse (O) mit den für die gewählte Institution erwarteten Ereignissen (E). Die Erwartung berücksichtigt die in den CH-IQI verfügbare Risikoadjustierung; die Signifikanz berücksichtigt zusätzlich die Fallzahl.</p>
+      </article>
+      <article class="comparison-question">
+        <span class="view-kicker">2 · Nationale Einordnung</span>
+        <strong>Funnel-Plot: Wo liegt unsere rohe Rate im Feld aller Institutionen?</strong>
+        <p>Verglichen wird die beobachtete, nicht risikoadjustierte Rate mit dem Schweizer Gesamtwert. Die trichterförmigen Grenzen zeigen, wie viel Zufallsstreuung bei der jeweiligen Fallzahl plausibel ist.</p>
+      </article>
+    </div>
+    <p class="comparison-caveat"><b>Warum können die Aussagen abweichen?</b> Weil der Vergleichsmassstab wechselt: eigenes Risikoprofil im O/E-Radar, Schweizer Rohwert im Funnel. Eine Institution kann deshalb im Radar prüfenswert und im Funnel innerhalb der Streuungsgrenzen sein – oder umgekehrt. Das ist kein Rechenfehler. Für die klinische Triage ist das O/E-Radar die erste Sicht; der Funnel liefert QM und Controlling zusätzlichen Kontext.</p>
+  </section>
   <section class="kpis">
     <div class="kpi alert"><div class="lbl">Signifikant erhöht</div><div class="val" id="k-alerts">–</div><div class="det" id="k-alerts-d"></div></div>
     <div class="kpi warn"><div class="lbl">Trendwarnungen 2024</div><div class="val" id="k-trends">–</div><div class="det" id="k-trends-d"></div></div>
@@ -186,8 +214,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   </section>
 
   <section class="card">
-    <h3>Auffälligkeiten-Radar <span id="r-title" style="font-weight:400;color:var(--text-secondary)"></span></h3>
-    <div class="hint">Sortiert nach Auffälligkeit (|z|). Voraussetzungen: ≥10 Fälle, erwartete Ereignisse ≥3. Gerichtet bewertet (rot/blau) werden nur Mortalität und Kaiserschnitt; übrige Prozessindikatoren erscheinen richtungsneutral als «abweichend». Trend vergleicht 2024 mit der eigenen Baseline 2019–2023 (nur Mortalität). Klick auf Zeile wählt den Indikator für den Funnel-Plot.</div>
+    <h3>1 · Primäre Triage: O/E-Auffälligkeiten <span id="r-title" style="font-weight:400;color:var(--text-secondary)"></span></h3>
+    <div class="hint"><b>Vergleichsmassstab: erwartete Ereignisse der gewählten Institution.</b> O/E = beobachtete Ereignisse ÷ erwartete Ereignisse; 1,00 bedeutet genau wie erwartet. Ein Signal entsteht erst, wenn die Abweichung unter Berücksichtigung der Fallzahl statistisch auffällig ist. Voraussetzungen: ≥10 Fälle und ≥3 erwartete Ereignisse. Gerichtet bewertet (rot/blau) werden nur Mortalität und Kaiserschnitt; übrige Prozessindikatoren erscheinen richtungsneutral als «abweichend». Trend vergleicht 2024 mit der eigenen Baseline 2019–2023 (nur Mortalität). Klick auf eine Zeile übernimmt den Indikator in die nationale Einordnung.</div>
     <div class="radar-controls">
       <div class="radar-view-control">
         <label class="control-label" for="r-view">Umfang des Auffälligkeitsradars</label>
@@ -205,13 +233,14 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
 
   <section class="grid2">
     <div class="card">
-      <h3 id="funnel-title">Funnel-Plot</h3>
-      <div class="hint">Alle Institutionen (ohne Vergleichsgruppen), Rate vs. Fallzahl (log-Skala). Kontrollgrenzen 95% / 99.8% um den CH-Wert. Gewählte Institution hervorgehoben.</div>
+      <h3 id="funnel-title">2 · Nationale Einordnung: Funnel-Plot</h3>
+      <div class="hint"><b>Vergleichsmassstab: beobachteter Schweizer Gesamtwert, ohne Risikoadjustierung.</b> Alle Institutionen (ohne Vergleichsgruppen), rohe Rate vs. Fallzahl (log-Skala). Kontrollgrenzen 95% / 99,8% um den CH-Wert. Die gewählte Institution ist hervorgehoben. Der Funnel ist Kontext und keine zweite O/E-Bewertung.</div>
       <div class="own-field" style="margin-bottom:10px">
         <label for="f-ind">Indikator für den Funnel-Plot</label>
         <select id="f-ind" class="chart-select"></select>
       </div>
       <canvas id="funnel"></canvas>
+      <div id="funnel-reading" class="view-reading" role="status" aria-live="polite">Wählen Sie einen Indikator, um O/E-Radar und Funnel gemeinsam einzuordnen.</div>
     </div>
     <div class="card">
       <h3>Grösste Trendabweichungen 2024 vs. Baseline</h3>
@@ -426,7 +455,7 @@ function renderRadar(){
   const show=rows.slice(0,25);
   const chips={alert:'<span class="chip alert">signifikant erhöht</span>',low:'<span class="chip low">signifikant tiefer</span>',ok:'<span class="chip ok">unauffällig</span>',na:'<span class="chip na">n. beurteilbar</span>',dev:'<span class="chip dev">abweichend (Richtung unbewertet)</span>'};
   const tr={up:'<span class="trend up">▲</span>',down:'<span class="trend down">▼</span>',flat:'<span class="trend flat">→</span>'};
-  let html='<tr><th>Indikator</th><th class="num">Fälle</th><th class="num">Rate</th><th class="num">erwartet</th><th class="num">O/E</th><th class="num">z</th>'+(s.level==='betrieb'?'<th>Trend</th>':'')+'<th>Status</th></tr>';
+  let html='<tr><th>Indikator</th><th class="num">Fälle</th><th class="num">beobachtete Rate</th><th class="num">erwartete Rate</th><th class="num">O/E</th><th class="num">z</th>'+(s.level==='betrieb'?'<th>Trend</th>':'')+'<th>Status</th></tr>';
   for(const r of show){
     html+=`<tr data-ind="${r.code}" style="cursor:pointer">
       <td><b>${r.code}</b> ${r.name.length>78?r.name.slice(0,78)+'…':r.name}</td>
@@ -456,6 +485,51 @@ function renderMfz(mfz){
   $('mfz').innerHTML=html;
 }
 
+function renderFunnelReading(radar,point,p0){
+  const target=$('funnel-reading');
+  if(!point){
+    target.textContent='Für die gewählte Institution liegt zu diesem Indikator kein Punkt im Funnel vor. Eine gemeinsame Einordnung ist deshalb nicht möglich.';
+    return;
+  }
+  const f=p0/100, se=Math.sqrt(f*(1-f)/point.x)*100;
+  const delta=point.y-p0;
+  const absDelta=Math.abs(delta);
+  const outside998=absDelta>3.09*se;
+  const outside95=absDelta>1.96*se;
+  const funnelSignal=outside95;
+  const funnelDirection=delta===0?0:(delta>0?1:-1);
+  const funnelLabel=outside998
+    ?`Funnel: ${funnelDirection>0?'oberhalb':'unterhalb'} der 99,8%-Grenze`
+    :(outside95?`Funnel: ${funnelDirection>0?'oberhalb':'unterhalb'} der 95%-Grenze`:'Funnel: innerhalb der 95%-Grenzen');
+
+  if(!radar){
+    target.innerHTML=`<div class="reading-signals"><span class="signal-pill">O/E: für diesen Indikatortyp nicht Teil der Triage</span><span class="signal-pill">${funnelLabel}</span></div><b>Zusammen lesen:</b> Der Funnel beschreibt hier nur die rohe Rate im nationalen Feld; daraus entsteht kein risikoadjustiertes O/E-Urteil.`;
+    return;
+  }
+  const radarLabel={alert:'O/E: prüfenswert erhöht',low:'O/E: statistisch tiefer',ok:'O/E: kein statistisches Signal',na:'O/E: nicht beurteilbar',dev:'O/E: abweichend, Richtung unbewertet'}[radar.status];
+  const radarSignal=['alert','low','dev'].includes(radar.status);
+  let explanation='';
+  if(radar.status==='na'){
+    explanation='Das O/E-Radar ist wegen zu kleiner Fallzahl, zu weniger erwarteter Ereignisse oder fehlender Werte nicht beurteilbar. Der Funnel bleibt eine deskriptive Einordnung und ersetzt diese Prüfung nicht.';
+  }else if(radarSignal&&funnelSignal){
+    if(radar.status==='dev'){
+      explanation='Beide Ansichten zeigen eine statistische Abweichung, bewerten bei diesem Prozessindikator aber nicht, ob eine höhere oder tiefere Rate besser ist. Leistungsauftrag, Spezialisierung und Kodierung sind zuerst zu prüfen.';
+    }else{
+      const radarDirection=radar.z>0?1:-1;
+      explanation=radarDirection===funnelDirection
+        ?'Beide Ansichten zeigen ein Signal in derselben zahlenmässigen Richtung. Da sie unterschiedliche Vergleichsmassstäbe verwenden, bleibt dies ein Prüfhinweis und kein Qualitätsurteil.'
+        :'Die Ansichten zeigen Signale in unterschiedlichen Richtungen. Das kann durch den Wechsel zwischen risikoadjustierter Erwartung und Schweizer Rohwert entstehen; Risikoprofil, Kodierung und Falldefinition sollten vor einer klinischen Interpretation geprüft werden.';
+    }
+  }else if(radarSignal&&!funnelSignal){
+    explanation='Für das erwartete Risikoprofil der Institution ist das Ergebnis prüfenswert; die rohe Rate ist zugleich mit der Zufallsstreuung um den Schweizer Gesamtwert vereinbar. Diese Kombination ist möglich und kein Rechenfehler.';
+  }else if(!radarSignal&&funnelSignal){
+    explanation='Die rohe Rate liegt ausserhalb der Streuungsgrenzen um den Schweizer Gesamtwert; gemessen an den erwarteten Ereignissen der Institution zeigt das O/E-Radar jedoch kein Signal. Ein abweichendes Patientengut kann diesen Unterschied erklären.';
+  }else{
+    explanation='In keiner der beiden Ansichten entsteht ein statistisches Signal. Das bedeutet nur «in diesen Vergleichen nicht auffällig» und ist keine umfassende Aussage über die Behandlungsqualität.';
+  }
+  target.innerHTML=`<div class="reading-signals"><span class="signal-pill">${radarLabel}</span><span class="signal-pill">${funnelLabel}</span></div><b>Zusammen lesen:</b> ${explanation}`;
+}
+
 function renderFunnel(){
   const s=state(), meta=CODEMAP.get(s.ind), idx=IDX[s.level];
   const per = s.level==='standort'?'24':s.per;
@@ -473,7 +547,13 @@ function renderFunnel(){
     p0=sn>0?so/sn*100:0;
   }
   const all=pts.concat(ownPts);
-  if(!all.length){if(funnelChart)funnelChart.destroy();funnelChart=null;$('funnel-title').textContent='Funnel-Plot – keine Daten';return;}
+  if(!all.length){
+    if(funnelChart)funnelChart.destroy();
+    funnelChart=null;
+    $('funnel-title').textContent='2 · Nationale Einordnung: Funnel-Plot – keine Daten';
+    renderFunnelReading(radarRows.find(r=>r.code===s.ind),null,p0);
+    return;
+  }
   const maxN=Math.max(...all.map(p=>p.x)), minN=Math.max(3,Math.min(...all.map(p=>p.x)));
   const f=p0/100, l95u=[],l95l=[],l998u=[],l998l=[];
   for(let k=0;k<=80;k++){
@@ -498,7 +578,8 @@ function renderFunnel(){
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return d.label?`${d.label}: ${fmtP(d.y)} (n=${fmtN(d.x)})`:null;}}}},
       scales:{x:{type:'logarithmic',title:{display:true,text:'Fallzahl (log)'},grid:{display:false}},
               y:{title:{display:true,text:'Rate'},ticks:{callback:v=>fmtP(v)},beginAtZero:true}}}});
-  $('funnel-title').textContent=`Funnel-Plot – ${meta.c} ${meta.l.slice(0,60)} (${per==='19'?'2019–2023':'2024'})`;
+  $('funnel-title').textContent=`2 · Nationale Einordnung: Funnel-Plot – ${meta.c} ${meta.l.slice(0,60)} (${per==='19'?'2019–2023':'2024'})`;
+  renderFunnelReading(radarRows.find(r=>r.code===s.ind),ownPts[0]||null,p0);
 }
 
 function renderTrendBar(rows){
@@ -836,14 +917,15 @@ function buildReport(){
   html+= lows.length? `<table>${thead}${lows.map(rowH).join('')}</table><p class="rep-note">Signifikant unter dem Erwartungswert liegende Raten. Auch positive Signale k\u00f6nnen Kodier- oder Casemix-Effekte enthalten und ersetzen keine inhaltliche Pr\u00fcfung.</p>` : '<p>Keine Indikatoren signifikant unter dem Erwartungswert.</p>';
 
 
-  if(funnelChart) html+=`<div class="rep-fig"><h2>Funnel-Plot \u2013 ${repEsc($('funnel-title').textContent.replace('Funnel-Plot \u2013 ',''))}</h2>
+  if(funnelChart) html+=`<div class="rep-fig"><h2>${repEsc($('funnel-title').textContent.replace(/^2 · Nationale Einordnung: /,''))}</h2>
   <img class="rep-chart" src="${funnelChart.toBase64Image()}">
-  <p class="rep-note">Punkte: alle Institutionen \u00b7 Raute: ${repEsc(inst.n)} \u00b7 gestrichelt: 95%- und 99.8%-Kontrollgrenzen um den offiziellen CH-Wert (log-Skala).</p></div>`;
+  <p class="rep-note">Punkte: alle Institutionen \u00b7 Raute: ${repEsc(inst.n)} \u00b7 gestrichelt: 95%- und 99.8%-Kontrollgrenzen um den offiziellen CH-Wert (log-Skala). Nicht risikoadjustierte nationale Einordnung.</p>
+  <p class="rep-note"><b>Zusammen gelesen mit O/E:</b> ${repEsc($('funnel-reading').textContent.replace('Zusammen lesen:',''))}</p></div>`;
   if(trendChart) html+=`<div class="rep-fig"><h2>Gr\u00f6sste Trendabweichungen 2024 vs. eigene Baseline</h2><img class="rep-chart" src="${trendChart.toBase64Image()}"><p class="rep-note">Grau: Ver\u00e4nderung statistisch nicht signifikant (|z| \u2264 1.96).</p></div>`;
 
   html+=`<div class="rep-foot">
   <h2>Methodik</h2>
-  <p>Beobachtete (O) und erwartete (E) Ereignisse werden aus den publizierten Raten und Fallzahlen rekonstruiert; z = (O\u2212E)/\u221a(E\u00b7(1\u2212p<sub>erw</sub>)), Signifikanzgrenze |z| &gt; 1.96. Gerichtete Bewertung nur f\u00fcr Mortalit\u00e4ts- und Kaiserschnitt-Indikatoren; \u00fcbrige Prozessindikatoren werden richtungsneutral als \u00ababweichend\u00bb ausgewiesen. Das Trendsignal vergleicht 2024 mit der eigenen Baseline 2019\u20132023 (E\u00b7SMR-Baseline, nur Mortalit\u00e4t, Ebene Betrieb). Voraussetzungen: mindestens 10 F\u00e4lle und mindestens 3 erwartete Ereignisse.</p>
+  <p>Beobachtete (O) und erwartete (E) Ereignisse werden aus den publizierten Raten und Fallzahlen rekonstruiert; z = (O\u2212E)/\u221a(E\u00b7(1\u2212p<sub>erw</sub>)), Signifikanzgrenze |z| &gt; 1.96. Das O/E-Radar vergleicht die Institution mit ihrer risikoadjustierten Erwartung. Der Funnel verwendet dagegen die rohe beobachtete Rate und Kontrollgrenzen um den Schweizer Gesamtwert; beide Ansichten k\u00f6nnen deshalb zu unterschiedlichen Einordnungen kommen. Gerichtete Bewertung nur f\u00fcr Mortalit\u00e4ts- und Kaiserschnitt-Indikatoren; \u00fcbrige Prozessindikatoren werden richtungsneutral als \u00ababweichend\u00bb ausgewiesen. Das Trendsignal vergleicht 2024 mit der eigenen Baseline 2019\u20132023 (E\u00b7SMR-Baseline, nur Mortalit\u00e4t, Ebene Betrieb). Voraussetzungen: mindestens 10 F\u00e4lle und mindestens 3 erwartete Ereignisse.</p>
   <h2>Limitationen</h2>
   <p>Grundlage sind ausschliesslich \u00f6ffentliche Publikationsdaten des BAG, keine Einzelfalldaten; Rundungen der publizierten Raten k\u00f6nnen O und E geringf\u00fcgig verzerren. Es erfolgt keine Adjustierung f\u00fcr Mehrfachtests: Bei ${rated.length} gepr\u00fcften Indikatoren sind einzelne Zufallssignale zu erwarten, Auff\u00e4lligkeiten sind deshalb Pr\u00fcfhinweise und keine Qualit\u00e4tsurteile. Die Risikoadjustierung der CH-IQI ber\u00fccksichtigt je nach Indikator nur Alter und Geschlecht; Unterschiede in Kodierpraxis, Schweregrad und Casemix bleiben bestehen und sind bei der Interpretation einzubeziehen. Auf Standortebene liegen nur Daten 2024 vor, Entwicklungssignale sind dort nicht m\u00f6glich. Die Publikation enth\u00e4lt keine Jahresreihen; Mehrjahrestrends sind mit diesen Daten nicht darstellbar.</p>
   <p>Datenquelle: BAG, Qualit\u00e4tsindikatoren der Schweizer Akutspit\u00e4ler (CH-IQI), Publikation QIP 2024 \u00b7 CH-IQI Kompass \u00b7 Prototyp \u00b7 Feedback: curtis.voelkle@gmail.com</p></div>`;
@@ -875,7 +957,7 @@ if(new URLSearchParams(location.search).get('report')==='1'){
 <div class="demo-footer">
 <h3>Hinweise zu diesem Prototyp</h3>
 <p><b>Datenquelle:</b> Offizielle BAG-Publikation der Qualit&auml;tsindikatoren der Schweizer Akutspit&auml;ler (CH-IQI), Datenjahr 2024 (QIP24), Baseline 2019&ndash;2023. Stichproben gegen das Original-Excel verifiziert.</p>
-<p><b>Methodik:</b> Auff&auml;lligkeits-Radar mit z-Statistik (O/E); gerichtete Bewertung nur f&uuml;r Mortalit&auml;ts- und Kaiserschnitt-Indikatoren, Prozessindikatoren richtungsneutral. Funnel-Plot mit 95%/99.8%-Kontrollgrenzen um den offiziellen CH-Wert.</p>
+<p><b>Methodik:</b> Das O/E-Radar vergleicht die Institution mit ihrer risikoadjustierten Erwartung; der Funnel ordnet die rohe Rate mit 95%-/99,8%-Kontrollgrenzen um den offiziellen CH-Wert ein. Beide Ansichten k&ouml;nnen wegen des unterschiedlichen Vergleichsmassstabs abweichen. Gerichtete Bewertung nur f&uuml;r Mortalit&auml;ts- und Kaiserschnitt-Indikatoren, Prozessindikatoren richtungsneutral.</p>
 <p><b>Was dieses Tool nicht ist:</b> keine Spitalrangliste, keine Spitalwahl-Empfehlung, kein abschliessendes Qualit&auml;tsurteil. Statistische Auff&auml;lligkeit ist ein Pr&uuml;fhinweis, keine Aussage &uuml;ber Behandlungsqualit&auml;t.</p>
 <p><b>Kontakt:</b> Curtis &middot; <a href="mailto:curtis.voelkle@gmail.com">curtis.voelkle@gmail.com</a> &middot; R&uuml;ckmeldungen aus der QM-Praxis sind ausdr&uuml;cklich willkommen.</p>
 </div>
