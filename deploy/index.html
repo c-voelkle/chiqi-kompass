@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CH-IQI Kompass</title>
+<style>
+  :root { --header:#12294b; --aktiv:#ffd766; --link:#cfe0f5; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body { display:flex; flex-direction:column; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+  header { background:var(--header); color:#fff; padding:.65rem 1.2rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+  header .brand { font-size:1.05rem; font-weight:650; white-space:nowrap; }
+  header .brand small { font-weight:400; opacity:.65; font-size:.75rem; margin-left:.5rem; }
+  nav { display:flex; gap:.25rem; flex-wrap:wrap; }
+  nav a { color:var(--link); text-decoration:none; font-size:.85rem; padding:.35rem .8rem; border-radius:6px; white-space:nowrap; }
+  nav a:hover { background:rgba(255,255,255,.1); }
+  nav a.aktiv { background:rgba(255,255,255,.14); color:var(--aktiv); font-weight:600; }
+  nav a sup { opacity:.7; font-size:.65rem; }
+  main { flex:1; min-height:0; }
+  iframe { width:100%; height:100%; border:0; display:block; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🧭 CH-IQI Kompass<small>Prototyp</small></div>
+  <nav id="tabs">
+    <a href="#cockpit" data-page="cockpit">Cockpit QIP 2024</a>
+    <a href="#chiqi" data-page="chiqi">Unterjährige Auswertung <sup>Beta</sup></a>
+  </nav>
+</header>
+<main><iframe id="frame" title="CH-IQI Kompass Inhalt"></iframe></main>
+<script>
+(function () {
+  var PAGES = {
+    cockpit: { src: 'cockpit.html', titel: 'CH-IQI Kompass: Cockpit QIP 2024' },
+    chiqi:   { src: 'chiqi/index.html', titel: 'CH-IQI Kompass: Unterjährige Auswertung (Beta)' }
+  };
+  var frame = document.getElementById('frame');
+  var links = document.querySelectorAll('#tabs a');
+  function show() {
+    var key = (location.hash || '#cockpit').slice(1);
+    if (key === 'spiges') key = 'chiqi';
+    if (!PAGES[key]) key = 'cockpit';
+    var page = PAGES[key];
+    if (frame.getAttribute('src') !== page.src) frame.setAttribute('src', page.src);
+    document.title = page.titel;
+    links.forEach(function (a) {
+      a.classList.toggle('aktiv', a.getAttribute('data-page') === key);
+    });
+  }
+  window.addEventListener('hashchange', show);
+  // file:// iframe origins are opaque: use a tightly scoped navigation
+  // message instead of allowing a child to access the parent's Location.
+  window.addEventListener('message', function (event) {
+    if (event.source !== frame.contentWindow || !event.data || event.data.type !== 'chiqi:navigate') return;
+    if (event.data.page !== 'cockpit' && event.data.page !== 'chiqi') return;
+    location.hash = event.data.page;
+  });
+  show();
+})();
+</script>
+</body>
+</html>
