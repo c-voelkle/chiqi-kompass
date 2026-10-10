@@ -70,7 +70,7 @@
         <button id="btnPdf" type="button" class="k-btn"><i data-k-icon="file-text"></i>PDF-Bericht</button>
         <button id="btnCockpit" type="button" class="k-btn k-btn--primary">Mit BAG-Verlauf vergleichen</button>
         <button class="k-infotip" data-k-tip="tip-transfer" aria-label="Über den Vergleich im Cockpit"></button>
-        <template id="tip-transfer-c"><p>Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p></template>
+        <template id="tip-transfer-c"><p>Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p><p>Mit einer Altersklasse als einzigem Filter vergleicht das Cockpit mit den BAG-Teilindikatoren derselben Altersgruppe (z. B. A.1.4.M Herzinfarkt 65–84). Für andere Filter publiziert das BAG keine Vergleichswerte.</p></template>
       </div>
     </div>
     <div class="k-panel__toolbar k-no-print" id="groupBar" role="group" aria-labelledby="groupBarLabel">
@@ -83,7 +83,7 @@
       <template id="tip-group-c"><p>Die Indikatoren werden nur für die gewählten Fälle berechnet. Jeder Fall behält seine Erwartung aus der CH-Referenz für Alter und Geschlecht (bei A.1.1 zusätzlich Komorbiditäten). O/E vergleicht die Gruppe darum mit dem CH-Wert für dieselben Patienten.</p><p>Der CH-Anteil bei G5_03 ist nicht nach Patientengruppe publiziert; mit Filter wird G5_03 nicht eingeordnet.</p></template>
       <button class="k-btn k-btn--sm k-btn--ghost" id="groupReset" type="button" hidden><i data-k-icon="x"></i>Filter zurücksetzen</button>
     </div>
-    <p class="k-hint k-no-print" id="groupHint" hidden>BAG-Vergleich und QM-Workbench beziehen sich auf alle Fälle.</p>
+    <p class="k-hint k-no-print" id="groupHint" hidden></p>
     <div class="k-table-wrap">
       <table class="k-table">
         <colgroup><col><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-signal"></colgroup>
@@ -354,7 +354,14 @@
         '<span>' + F.n(austritte) + ' von ' + F.n(LAST.austritte) + ' Austritten</span>' : '');
     document.getElementById('printMeta').innerHTML = LAST.printMeta + (active
       ? '<tr><th>Patientengruppe</th><td>' + esc(LAST.view.label) + ' (' + F.n(austritte) + ' von ' + F.n(LAST.austritte) + ' Austritten)</td></tr>' : '');
-    document.getElementById('btnCockpit').disabled = active;
+    // Das BAG publiziert Teilindikatoren nur nach Altersgruppe: Nur dieser Filter
+    // lässt sich mit dem BAG-Verlauf vergleichen.
+    var ageOnly = PF.isAgeOnly(filter);
+    LAST.view.ageOnly = ageOnly;
+    document.getElementById('btnCockpit').disabled = active && !ageOnly;
+    document.getElementById('groupHint').textContent = !active ? '' : ageOnly
+      ? 'BAG-Vergleich mit den Teilindikatoren dieser Altersgruppe; QM-Workbench bezieht sich auf alle Fälle.'
+      : 'BAG-Vergleich nur ohne Filter oder mit Altersklasse allein; QM-Workbench bezieht sich auf alle Fälle.';
     show('groupReset', active);
     show('groupHint', active);
   }
@@ -1020,16 +1027,19 @@
   }
   window.__chiqiReportTest = function (data) { LAST = data; buildReport(); return document.getElementById('report').innerHTML; };
   document.getElementById('btnCockpit').addEventListener('click', function () {
-    if (!LAST || (LAST.view && LAST.view.active)) return;
+    var view = LAST && LAST.view;
+    if (!LAST || (view && view.active && !view.ageOnly)) return;
+    var grouped = !!(view && view.active);
     // sessionStorage ist absichtlich flüchtig und vermeidet Kennzahlen in URL,
     // Server-Logs oder dauerhaftem Browser-Speicher. Beide Apps laufen unter
     // demselben Origin und der Wechsel bleibt im selben Browser-Tab.
     var payload = {
       version: 1,
-      indicators: LAST.results.map(function (r) {
+      indicators: (grouped ? view.results : LAST.results).map(function (r) {
         return { id: r.id, n: r.n, O: r.O, E: r.E, smr: r.smr };
       })
     };
+    if (grouped) payload.group = { age: view.filter.age };
     try {
       sessionStorage.setItem(COCKPIT_TRANSFER_KEY, JSON.stringify(payload));
     } catch (e) {

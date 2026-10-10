@@ -124,6 +124,7 @@
       <div class="k-legend" aria-hidden="true">
         <span class="k-legend__item"><span class="k-swatch"></span><span id="funnel-points-label">Institutionen</span></span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--needle"></span>Ihre Institution</span>
+        <span class="k-legend__item" id="funnel-ytd-legend" hidden><span class="k-swatch k-swatch--hatch"></span>unterjährig, vorläufig</span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--ref"></span><span id="funnel-ref-label">CH-Wert</span></span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--dashed"></span>95%</span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--line"></span>99.8%</span>
@@ -165,6 +166,7 @@
         <span class="k-meta" id="own-history-title"></span>
       </div>
       <div class="k-panel__actions">
+        <button id="own-show-funnel" type="button" class="k-btn k-btn--sm" hidden>Im Funnel-Plot zeigen</button>
         <button id="own-open-chiqi" type="button" class="k-btn k-btn--sm">Unterjährige Auswertung öffnen</button>
         <button id="own-explore" type="button" class="k-btn k-btn--sm" data-testid="explore-cockpit" hidden>Gesamtes Cockpit erkunden</button>
         <button id="own-clear" type="button" class="k-btn k-btn--sm k-btn--ghost-danger" hidden><i data-k-icon="x"></i>Übernahme entfernen</button>
@@ -285,11 +287,37 @@ function readOwnTransfer(){
       if(smr!==null&&(!Number.isFinite(smr)||smr<0)) continue;
       indicators.push({id:r.id,n,O,E,smr});
     }
-    return indicators.length?{version:1,indicators}:null;
+    // Optional: Altersgruppe aus dem Patientenfilter der unterjährigen Auswertung.
+    const age=data.group&&typeof data.group.age==='string'&&AGE_LABELS[data.group.age]?data.group.age:null;
+    return indicators.length?{version:1,indicators,group:age?{age}:null}:null;
   }catch(e){return null;}
 }
+// BAG-Teilindikatoren nach Altersgruppe mit derselben Grundgesamtheit wie der
+// Hauptindikator (Bezeichnung jeweils geprüft). Andere Filter haben keine Entsprechung.
+const AGE_LABELS=Object.freeze({'0-19':'Alter <20','20-44':'Alter 20-44','45-64':'Alter 45-64','65-84':'Alter 65-84','85+':'Alter >84'});
+const AGE_TEXT=Object.freeze({'0-19':'0–19 J.','20-44':'20–44 J.','45-64':'45–64 J.','65-84':'65–84 J.','85+':'85+ J.'});
+const OWN_AGE_STRATA=Object.freeze({
+  A1_01:{'20-44':'A.1.2.M','45-64':'A.1.3.M','65-84':'A.1.4.M','85+':'A.1.5.M'},
+  B1_01:{'20-44':'B.1.2.M','45-64':'B.1.3.M','65-84':'B.1.4.M','85+':'B.1.5.M'},
+  D1_01:{'0-19':'D.1.2.M','20-44':'D.1.3.M','45-64':'D.1.4.M','65-84':'D.1.5.M','85+':'D.1.6.M'}
+});
+function ageStratumMapping(base,age){
+  const code=(OWN_AGE_STRATA[base.sourceId]||{})[age], meta=code&&CODEMAP.get(code);
+  // Bezeichnung muss die des Hauptindikators plus Altersgruppe sein.
+  if(!meta||meta.t!=='M'||!meta.l.includes(AGE_LABELS[age])) return null;
+  const stem=base.label.replace(' (Alter >19)','').replace(', Mortalität','');
+  if(!meta.l.startsWith(stem)) return null;
+  return {sourceId:base.sourceId,cockpitCode:code,label:meta.l,age};
+}
+// Zuordnungen der aktuellen Übernahme: ohne Altersgruppe die Hauptindikatoren,
+// mit Altersgruppe die passenden Teilindikatoren (G5_03 hat keine).
+function ownMappings(){
+  const age=ownTransfer&&ownTransfer.group&&ownTransfer.group.age;
+  if(!age) return OWN_INDICATOR_MAP;
+  return OWN_INDICATOR_MAP.map(m=>ageStratumMapping(m,age)).filter(Boolean);
+}
 function ownMappingForCockpit(code){
-  const mapping=OWN_INDICATOR_MAP.find(m=>m.cockpitCode===code);
+  const mapping=ownMappings().find(m=>m.cockpitCode===code);
   if(!mapping) return null;
   const meta=CODEMAP.get(code);
   return meta&&meta.t===(mapping.type||'M')&&meta.l===mapping.label?mapping:null;
@@ -570,6 +598,18 @@ function renderFunnelReading(radar,point,p0){
   target.innerHTML=`<div class="k-badges"><span class="k-meta">O/E</span>${UI.badge({signal:SIGNAL_OF[radar.status]})}${funnelBadge}</div><div><b>Zusammen lesen:</b> ${explanation}</div>`;
 }
 
+// Unterjähriger Wert der bestätigten Institution als vorläufiger Punkt (nur Ebene Betrieb).
+function ownYtdPoint(s){
+  if(!ownTransfer||s.level!=='betrieb'||!ownConfirmedInst||ownConfirmedInst.i!==s.i) return null;
+  const mapping=ownMappingForCockpit(s.ind);
+  const r=mapping&&ownTransfer.indicators.find(x=>x.id===mapping.sourceId);
+  if(!r||!(r.n>0)) return null;
+  return {x:r.n,y:r.O/r.n*100,label:'Ihre Institution, unterjährig (vorläufig)'};
+}
+function funnelPosition(point,p0){
+  const f=p0/100, se=Math.sqrt(f*(1-f)/point.x)*100, d=point.y-p0, dir=d>0?'oberhalb':'unterhalb';
+  return Math.abs(d)>3.09*se?`${dir} 99.8%-Grenze`:Math.abs(d)>1.96*se?`${dir} 95%-Grenze`:'innerhalb 95%-Grenzen';
+}
 function renderFunnel(){
   renderGroupMeta(); // Fallzahl-Drittel und Mitglieder hängen vom Indikator ab
   const s=state(), meta=CODEMAP.get(s.ind), idx=IDX[s.level];
@@ -599,7 +639,9 @@ function renderFunnel(){
     ?'Funnel-Plot: rohe Rate gegen Fallzahl der Vergleichsgruppe mit Kontrollgrenzen um den Gruppenwert'
     :'Funnel-Plot: rohe Rate gegen Fallzahl aller Institutionen mit Kontrollgrenzen');
   funnelRef={p0,grouped,label:grouped?HG.describe(gf):'',members:pts.length+(ownInGroup?ownPts.length:0)};
-  const all=pts.concat(ownPts);
+  const ytd=ownYtdPoint(s), ytdPts=ytd?[ytd]:[];
+  $('funnel-ytd-legend').hidden=!ytd;
+  const all=pts.concat(ownPts,ytdPts);
   if(!all.length){
     if(funnelChart)funnelChart.destroy();
     funnelChart=null;
@@ -623,6 +665,8 @@ function renderFunnel(){
     data:{datasets:[
       {type:'scatter',label:grouped?'Vergleichsgruppe':'Institutionen',data:pts,backgroundColor:T('chart-point'),pointRadius:3,pointHoverRadius:4,order:2},
       {type:'scatter',label:'Ihre Institution',data:ownPts,backgroundColor:T('card'),borderColor:T('needle'),borderWidth:2.5,pointRadius:6,pointHoverRadius:7,order:1},
+      // §4.3: vorläufig = schraffiert mit eigener Form, nie nur Farbe.
+      {type:'scatter',label:'unterjährig',data:ytdPts,pointStyle:'rectRot',backgroundColor:UI.hatch(T('subtle-foreground')),borderColor:T('needle'),borderWidth:2,pointRadius:7,pointHoverRadius:8,order:0},
       Object.assign(lim(l95u,[5,4]),{label:'95%'}),
       Object.assign(lim(l95l,[5,4]),{label:'95u'}),
       Object.assign(lim(l998u,[]),{label:'99.8%'}),
@@ -636,6 +680,9 @@ function renderFunnel(){
   $('funnel-sub').textContent=`${meta.c} ${meta.l.length>60?meta.l.slice(0,60)+'…':meta.l} · ${F.period(per)}`;
   $('funnel-sub').title=`${meta.c} ${meta.l}`;
   renderFunnelReading(radarRows.find(r=>r.code===s.ind),ownPts[0]||null,p0);
+  if(ytd) $('funnel-reading').insertAdjacentHTML('beforeend',
+    `<div class="k-badges"><span class="k-meta">Unterjährig</span>${UI.badge({tone:'caution',label:'vorläufig'})}${UI.badge({tone:'neutral',label:funnelPosition(ytd,p0)})}`+
+    `<span class="k-meta">Rate ${fmtP(ytd.y)} · n ${fmtN(ytd.x)}${ownTransfer.group?' · Altersgruppe '+AGE_TEXT[ownTransfer.group.age]:''}</span></div>`);
 }
 
 function renderTrendBar(rows){
@@ -672,7 +719,7 @@ function renderTrendBar(rows){
 
 function ownAvailableMappings(){
   if(!ownTransfer) return [];
-  return OWN_INDICATOR_MAP.filter(m=>ownTransfer.indicators.some(r=>r.id===m.sourceId));
+  return ownMappings().filter(m=>ownTransfer.indicators.some(r=>r.id===m.sourceId));
 }
 function fillOwnInstitutions(){
   const sel=$('own-inst'), cur=sel.value||$('f-inst').value;
@@ -731,6 +778,7 @@ function renderOwnHistory(){
   if(ownHistoryChart){ownHistoryChart.destroy();ownHistoryChart=null;}
   content.hidden=true;
   title.textContent='';
+  $('own-show-funnel').hidden=true;
   clear.hidden=!ownTransfer;
   banner.hidden=!ownTransfer;
   controls.hidden=!ownTransfer;
@@ -743,7 +791,8 @@ function renderOwnHistory(){
     return;
   }
   const available=ownAvailableMappings();
-  $('own-transfer-title').textContent='Unterjährige Auswertung übernommen: '+available.length+(available.length===1?' Indikator':' Indikatoren');
+  $('own-transfer-title').textContent='Unterjährige Auswertung übernommen: '+available.length+(available.length===1?' Indikator':' Indikatoren')+
+    (ownTransfer.group?' · Altersgruppe '+AGE_TEXT[ownTransfer.group.age]:'');
   const i=+$('own-inst').value, inst=IDX.betrieb.insts[i];
   const confirmed=!!(inst&&!inst.a&&ownConfirmedInst&&ownConfirmedInst.i===i&&ownConfirmedInst.name===inst.n);
   $('own-ind').disabled=!confirmed||!available.length;
@@ -786,6 +835,7 @@ function renderOwnHistory(){
   $('own-method-specific').textContent=proportion?'Der Resektionsanteil ist nicht risikoadjustiert. Höher oder tiefer ist kein Qualitätsurteil. Referenz: BAG v5.5 / 2024.':'Der unterjährige SMR kann wegen der aktuellen Risikoadjustierung methodisch vom publizierten SMR abweichen.';
   title.textContent=mapping.cockpitCode+' '+mapping.label;
   content.hidden=false;
+  $('own-show-funnel').hidden=false;
   setOwnStep('own-step-result','done');
   // §4.2: publizierte Werte flächig, unterjähriger Wert schraffiert (vorläufig, nicht nur Farbe).
   const T=UI.token, solid=T('subtle-foreground');
@@ -893,6 +943,15 @@ try{
   $('own-explore').addEventListener('click',()=>{
     $('cockpit-explorer').open=true;
     $('cockpit-explorer').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+  // Unterjährigen Wert im Funnel-Plot gegen CH-Wert oder Vergleichsgruppe zeigen.
+  $('own-show-funnel').addEventListener('click',()=>{
+    const code=$('own-ind').value;
+    if([...$('f-ind').options].some(o=>o.value===code)) $('f-ind').value=code;
+    renderFunnel(); markRadarSelection();
+    $('cockpit-explorer').open=true;
+    const panel=$('funnel').closest('.k-panel');
+    panel.scrollIntoView({block:'start'});
   });
   $('own-open-chiqi').addEventListener('click',()=>{
     if(window.top!==window.self) window.top.postMessage({type:'chiqi:navigate',page:'chiqi'},'*');
@@ -1021,8 +1080,8 @@ function buildReport(scope='all'){
   if(funnelChart) html+=`<div class="rep-fig"><h2>Funnel-Plot: ${repEsc($('funnel-sub').title||$('funnel-sub').textContent)}</h2>
   <img class="rep-chart" src="${funnelChart.toBase64Image()}">
   <p class="rep-note">${funnelRef&&funnelRef.grouped
-    ?`Punkte: Vergleichsgruppe ${repEsc(funnelRef.label)} (${fmtN(funnelRef.members)} mit Werten) \u00b7 Ring: ${repEsc(inst.n)} \u00b7 Linie: gepoolter Rohwert der Gruppe ${fmtP(funnelRef.p0)} \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustiert; Gruppenmerkmale aus den BAG-Kennzahlen der Schweizer Spit\u00e4ler 2024.`
-    :`Punkte: alle Institutionen \u00b7 Ring: ${repEsc(inst.n)} \u00b7 Linie: CH-Wert \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustierte nationale Einordnung.`}</p>
+    ?`Punkte: Vergleichsgruppe ${repEsc(funnelRef.label)} (${fmtN(funnelRef.members)} mit Werten) \u00b7 Ring: ${repEsc(inst.n)}${ownYtdPoint(s)?' \u00b7 Raute schraffiert: unterj\u00e4hrig, vorl\u00e4ufig':''} \u00b7 Linie: gepoolter Rohwert der Gruppe ${fmtP(funnelRef.p0)} \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustiert; Gruppenmerkmale aus den BAG-Kennzahlen der Schweizer Spit\u00e4ler 2024.`
+    :`Punkte: alle Institutionen \u00b7 Ring: ${repEsc(inst.n)}${ownYtdPoint(s)?' \u00b7 Raute schraffiert: unterj\u00e4hrig, vorl\u00e4ufig':''} \u00b7 Linie: CH-Wert \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustierte nationale Einordnung.`}</p>
   <p class="rep-note"><b>Zusammen gelesen mit O/E:</b> ${repEsc($('funnel-reading').textContent.replace('Zusammen lesen:',''))}</p></div>`;
   if(trendChart) html+=`<div class="rep-fig"><h2>Gr\u00f6sste Trendabweichungen 2024 vs. eigene Baseline</h2><img class="rep-chart" src="${trendChart.toBase64Image()}"><p class="rep-note">Grau: Ver\u00e4nderung statistisch nicht signifikant (|z| \u2264 1.96).</p></div>`;
 

@@ -448,7 +448,7 @@ colour literals to Chart.js (today `COLORS` and `'#b6bcc4CC'`-style alpha suffix
 
 | Chart | Encoding |
 |---|---|
-| **Funnel-Plot** | Other institutions `chart-point` 3px dots. CH value `chart-reference` 1px line. 95% limits `chart-limit` dashed, 99.8% solid. **Ihre Institution**: 6px ring, `needle` 2.5px outline, `card` fill (the funnel is context; the signal stays with the O/E badge in the reading below the chart). Log x-axis labelled `n (log)`. |
+| **Funnel-Plot** | The confirmed institution's interim value (transferred from the Unterjährige Auswertung) is a hatched diamond with a `needle` outline, its own legend item *unterjährig, vorläufig*, and a `vorläufig` badge in the reading below. Other institutions `chart-point` 3px dots. CH value `chart-reference` 1px line. 95% limits `chart-limit` dashed, 99.8% solid. **Ihre Institution**: 6px ring, `needle` 2.5px outline, `card` fill (the funnel is context; the signal stays with the O/E badge in the reading below the chart). Log x-axis labelled `n (log)`. |
 | **Trendabweichungen** | Horizontal bars of z. Inside ±1.96: `chart-point`. Outside: `high` / `low` by direction and polarity (never green). Zero line `chart-reference`; ±1.96 as `chart-limit` dashed. |
 | **Eigene Daten im BAG-Vergleich** | Three separate bars, not a line: Baseline 2019–2023, QIP 2024, unterjährig. Published values solid `subtle-foreground`; the unterjährig bar **hatched** with a dashed outline and a `vorläufig` label, so "preliminary" never depends on colour or opacity. Gaps, not zeros, for missing values. |
 
