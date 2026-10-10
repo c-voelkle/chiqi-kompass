@@ -1,8 +1,9 @@
 # CH-IQI Kompass: notes for contributors and agents
 
-The app lives in `deploy/` (static pages, no build step, uploaded to GitHub Pages as
-described in `ANLEITUNG_UPLOAD.md`). The files at the repository root are the
-currently published copy.
+The app lives in `deploy/` (static pages, no build step). `deploy/` is the only copy:
+`.github/workflows/pages.yml` publishes it to GitHub Pages on every push to `main`
+that touches it, without the `*.mjs` tests (see `ANLEITUNG.md`). Do not copy app files
+to the repository root.
 
 ## UI: read `docs/DESIGN_LANGUAGE.md` before styling anything
 
