@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var VERSION = '1.1.0';
+  var VERSION = '1.2.0';
   var STORAGE_KEY = 'chiqiKompass.qmProjects.v1';
   var SECRET_KEY = 'chiqiKompass.localReferenceKey.v1';
   var PROJECT_SCHEMA = 1;
@@ -19,7 +19,8 @@
   var INDICATOR_META = {
     A1_01: { shortLabel: 'Herzinfarkt', prefixes: ['I21', 'I22'] },
     B1_01: { shortLabel: 'Schlaganfall', prefixes: ['I60', 'I61', 'I63', 'I64'] },
-    D1_01: { shortLabel: 'Pneumonie', prefixes: ['A481', 'J100', 'J110', 'J12', 'J13', 'J14', 'J15', 'J16', 'J17', 'J18', 'J69'] }
+    D1_01: { shortLabel: 'Pneumonie', prefixes: ['A481', 'J100', 'J110', 'J12', 'J13', 'J14', 'J15', 'J16', 'J17', 'J18', 'J69'] },
+    G5_03: { shortLabel: 'Brusterhaltende Resektionen', prefixes: ['C50', 'D05'], allDiagnoses: true }
   };
 
   var REVIEW_CLASSES = [
@@ -249,6 +250,7 @@
   function exclusionLabel(ev, c, relevant) {
     if (ev.denominator) return ev.numerator ? 'Nenner und Zähler' : 'Nenner';
     if (c.nochHospitalisiert) return 'Noch hospitalisiert';
+    if (ev.indicatorId === 'G5_03') return 'Geschlecht oder CHOP-/Diagnosekriterien nicht erfüllt';
     if (!relevant) return 'Hauptdiagnose nicht im Themenbereich';
     if (c.alterJahre == null) return 'Alter fehlt';
     if ((ev.indicatorId === 'A1_01' || ev.indicatorId === 'B1_01') && c.alterJahre <= 19) return 'Alter ≤19';
@@ -262,7 +264,9 @@
     var rows = [];
     evaluations.forEach(function (ev, i) {
       var c = cases[i];
-      var relevant = startsWithAny(c.hauptdiagnose, meta.prefixes);
+      var relevant = meta.allDiagnoses
+        ? diagnoseKodes(c).some(function (d) { return startsWithAny(d, meta.prefixes); })
+        : startsWithAny(c.hauptdiagnose, meta.prefixes);
       if (!relevant && !ev.denominator) return;
       ev.indicatorId = indicator.id;
       rows.push({
@@ -299,15 +303,15 @@
   function assessResult(result) {
     if (result.outcomeMisses || result.refMisses)
       return { code: 'blocked', label: 'nicht interpretierbar', z: null };
-    if (result.E == null || result.n < 10 || result.E < 3)
+    if (result.E == null || result.n < 10 || result.E < 3 || (result.typ === 'Anteil' && result.n - result.E < 3))
       return { code: 'small', label: 'noch nicht belastbar', z: null };
     var se = Math.sqrt(result.E * (1 - result.E / result.n));
     if (!(se > 0)) return { code: 'blocked', label: 'nicht interpretierbar', z: null };
     var z = (result.O - result.E) / se;
     return z > 1.96
-      ? { code: 'high', label: 'prüfenswert erhöht', z: z }
+      ? { code: 'high', label: result.typ === 'Anteil' ? 'prüfenswert erhöht (richtungsneutral)' : 'prüfenswert erhöht', z: z }
       : z < -1.96
-        ? { code: 'low', label: 'tiefer als Erwartung', z: z }
+        ? { code: 'low', label: result.typ === 'Anteil' ? 'prüfenswert tiefer (richtungsneutral)' : 'tiefer als Erwartung', z: z }
         : { code: 'normal', label: 'ohne statistisches Signal', z: z };
   }
 
@@ -637,11 +641,17 @@
       var definitionHash = await sha256Text(
         (def ? def.sqlF : '') + '\n' + (def ? def.sqlM : '') + '\n' +
         stableStringify(def && def.glm ? def.glm : null) + '\n' +
-        stableStringify(def && def.refStrata ? def.refStrata : [])
+        stableStringify(def && def.refStrata ? def.refStrata : []) + '\n' +
+        stableStringify(def && def.typ === 'Anteil' ? {
+          filterF: def.filterF, filterM: def.filterM, referenceRate: def.referenceRate,
+          referenceYear: def.refJahr, numeratorCode: def.numeratorCode, denominatorCode: def.denominatorCode
+        } : null)
       );
       indicatorProtocols.push({
         id: r.id,
         label: r.label,
+        type: r.typ,
+        calculationPath: def && def.filterF ? 'BAG-fCHIQI' : 'BAG-sCHIQI',
         n: r.n,
         O: r.O,
         E: r.E == null ? null : round(r.E, 9),
@@ -697,7 +707,7 @@
       method: {
         chiqiVersion: options.methodMeta.chiqiVersion,
         source: options.methodMeta.quelle,
-        calculationPath: 'BAG-sCHIQI SQL-Dialekt, lokal ausgewertet',
+        calculationPath: 'BAG-sCHIQI (Mortalität), BAG-fCHIQI (G5_03), lokal ausgewertet',
         indicators: indicatorProtocols
       },
       // Bewusst ohne group und in einer von der Anzeige unabhängigen Reihenfolge:
@@ -751,6 +761,7 @@
       projectId: projectKey(context, result.id),
       indicatorId: result.id,
       indicatorLabel: result.label,
+      indicatorType: result.typ || 'Mortalität',
       createdAt: timestamp,
       updatedAt: timestamp,
       context: clone(context),
@@ -763,7 +774,8 @@
         rate: result.rate,
         engineVersion: null,
         referenceYear: result.refJahr,
-        adjustment: result.adjustierung
+        adjustment: result.adjustierung,
+        referenceRate: result.referenceRate
       },
       status: 'neu',
       owner: '',
@@ -773,7 +785,7 @@
         signalQuestion: '',
         hypothesis: '',
         goal: '',
-        targetMetric: 'SMR',
+        targetMetric: result.typ === 'Anteil' ? 'Rate' : 'SMR',
         targetValue: '',
         measure: ''
       },
@@ -803,12 +815,13 @@
     if (!raw || raw.schemaVersion !== PROJECT_SCHEMA || raw.indicatorId !== result.id)
       return createProject(context, result);
     var p = clone(raw);
+    p.indicatorType = result.typ || 'Mortalität';
     p.context = clone(context);
     p.baseline = {
       measuredAt: p.baseline && p.baseline.measuredAt || nowIso(),
       n: result.n, O: result.O, E: result.E, smr: result.smr, rate: result.rate,
       engineVersion: p.baseline && p.baseline.engineVersion || null,
-      referenceYear: result.refJahr, adjustment: result.adjustierung
+      referenceYear: result.refJahr, adjustment: result.adjustierung, referenceRate: result.referenceRate
     };
     p.reviews = p.reviews || {};
     p.audit = p.audit || [];
@@ -868,11 +881,15 @@
 
   function followUp(project) {
     var n = asNumber(project.check.n), O = asNumber(project.check.O), E = asNumber(project.check.E);
-    var rate = n != null && n > 0 && O != null ? O / n : null;
-    var smr = E != null && E > 0 && O != null ? O / E : null;
+    var proportion = project.indicatorType === 'Anteil';
+    if (proportion) E = n != null && project.baseline.referenceRate != null ? n * project.baseline.referenceRate : null;
+    var validCounts = n != null && Number.isInteger(n) && n >= 0 && O != null && Number.isInteger(O) && O >= 0 && O <= n;
+    var rate = validCounts && n > 0 ? O / n : null;
+    var smr = !proportion && validCounts && E != null && E > 0 ? O / E : null;
     var baselineSmr = project.baseline.smr;
     return {
       n: n, O: O, E: E, rate: rate, smr: smr,
+      validCounts: validCounts,
       smrChange: smr != null && baselineSmr != null ? smr - baselineSmr : null,
       comparable: project.check.methodComparable !== false &&
         project.baseline.adjustment != null && project.baseline.referenceYear != null
@@ -894,6 +911,7 @@
       var fu = followUp(project);
       if (fu.n == null || fu.O == null || fu.E == null || !project.check.measuredAt)
         errors.push('Für die Wirkungsmessung fehlen Messdatum, n, O oder E.');
+      else if (!fu.validCounts) errors.push('Die Nachmessung verlangt ganze Fallzahlen mit 0 ≤ O ≤ n.');
       if (!project.check.evidence) errors.push('Evidenz oder Quellenhinweis der Nachmessung fehlt.');
     }
     if (project.status === 'abgeschlossen' && (!project.act.decision || !project.act.conclusion))
@@ -911,7 +929,7 @@
       review: review.selected > 0 && review.completed === review.selected,
       plan: !!(project.owner && project.dueDate && project.plan.goal && project.plan.measure),
       do: project.do.status === 'umgesetzt' && !!project.do.implementedAt,
-      check: fu.n != null && fu.O != null && fu.E != null && !!project.check.measuredAt,
+      check: fu.validCounts && fu.E != null && !!project.check.measuredAt,
       act: !!(project.act.decision && project.act.conclusion)
     };
   }

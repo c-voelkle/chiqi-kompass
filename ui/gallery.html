@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#12294B">
+<title>Kompass UI Gallery</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="kompass.css">
+<script src="kompass-ui.js"></script>
+</head>
+<!-- Living reference for docs/DESIGN_LANGUAGE.md. Every k- component and
+     KompassUI helper appears here in its variants; add new ones here first. -->
+<body class="k-body">
+<header class="k-shell">
+  <a class="k-brand" href="../index.html"><span data-k-mark></span>CH-IQI Kompass</a>
+  <nav class="k-tabs" aria-label="Beispiel-Navigation">
+    <a class="k-tab" href="#" aria-current="page">Aktiver Tab</a>
+    <a class="k-tab" href="#">Inaktiver Tab <span class="k-proto">Beta</span></a>
+  </nav>
+  <div class="k-shell__end"><span class="k-proto">Prototyp</span><a class="k-shell__link" href="#">Feedback</a></div>
+</header>
+<div class="k-page">
+  <header class="k-strip">
+    <div class="k-strip__title"><h1>UI Gallery</h1><span class="k-meta">Lebende Referenz zu docs/DESIGN_LANGUAGE.md · kompass.css und kompass-ui.js</span></div>
+    <div class="k-strip__controls">
+      <label class="k-field"><span class="k-field__label">Thema</span>
+        <select id="theme" class="k-select"><option value="">System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select></label>
+    </div>
+  </header>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Tokens §2</h2><span class="k-meta">Flächen, Text, Marke, Signale, Workflow</span></div></div>
+    <div id="swatches" class="k-form-grid k-form-grid--4"></div>
+  </section>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Typografie §2.6</h2></div></div>
+    <div class="k-stack">
+      <div class="k-readout__value">1’234 · 26 / 32 Kennzahl</div>
+      <h1 class="k-strip__title">18 / 26 Seitentitel</h1>
+      <p>14 / 20 Fliesstext, Steuerelemente, Paneltitel (600)</p>
+      <p class="k-meta">12 / 16 Meta, Hint, kompakte Tabellen</p>
+      <p class="k-readout__label">11 / 16 Badge, Tabellenkopf, Achsen</p>
+    </div>
+  </section>
+
+  <section class="k-grid-2">
+    <div class="k-panel">
+      <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Signale §2.4</h2><span class="k-meta">ui.badge({ signal })</span></div></div>
+      <div class="k-badges" id="signals"></div>
+      <p class="k-section k-badges" id="trends"></p>
+    </div>
+    <div class="k-panel">
+      <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Workflow §2.5</h2><span class="k-meta">ui.badge({ tone }) · ui.tone()</span></div></div>
+      <div class="k-badges" id="tones"></div>
+      <div class="k-stack k-section" id="toneLines"></div>
+    </div>
+  </section>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Buttons §2.2</h2><span class="k-meta">Ein gefüllter Button pro Bereich</span></div></div>
+    <div class="k-row k-row--center">
+      <button class="k-btn k-btn--primary" type="button"><i data-k-icon="file-text"></i>Primär</button>
+      <button class="k-btn" type="button">Outline</button>
+      <button class="k-btn k-btn--ghost" type="button">Ghost</button>
+      <button class="k-btn k-btn--ghost-danger" type="button"><i data-k-icon="trash"></i>Ghost destruktiv</button>
+      <button class="k-btn k-btn--danger" type="button" id="dlg">Dialog öffnen</button>
+      <button class="k-btn k-btn--sm" type="button">Klein</button>
+      <button class="k-btn" type="button" disabled>Deaktiviert</button>
+      <button class="k-btn k-btn--primary" type="button" id="busy">Speichern</button>
+    </div>
+  </section>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Felder §3.6
+      <button class="k-infotip" data-k-tip="tip-g1" aria-label="Über InfoTips"></button></h2>
+      <template id="tip-g1-c"><p>InfoTip §3.3: Hover nach 300 ms, Fokus und Klick sofort, Esc schliesst. Nur Text, höchstens etwa 60 Wörter.</p></template>
+      <span class="k-meta">Label, Hint, Fehlerzustand</span></div></div>
+    <div class="k-form-grid">
+      <label class="k-field"><span class="k-field__label">Institution</span><select class="k-select"><option>Universitätsspital Zürich</option></select></label>
+      <label class="k-field"><span class="k-field__label">Suche</span><input class="k-input" placeholder="Code oder Text"></label>
+      <label class="k-field"><span class="k-field__label">Zielwert</span><input class="k-input" aria-invalid="true" value="abc"><span class="k-hint" role="alert">Zahl erwartet, z. B. 1.0</span></label>
+      <label class="k-field"><span class="k-field__label">Notiz</span><textarea class="k-textarea" placeholder="Freitext"></textarea><span class="k-hint">Keine Patientennamen eingeben.</span></label>
+      <label class="k-check"><input type="checkbox" checked> Gleiche Methodik verwendet</label>
+    </div>
+  </section>
+
+  <section class="k-readouts" id="readouts"></section>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Tabelle §3.5</h2><span class="k-meta">colgroup-Breiten, Zahlen rechtsbündig, Auswahl mit Balken</span></div></div>
+    <div class="k-table-wrap"><table class="k-table k-table--compact" id="table"></table></div>
+  </section>
+
+  <section class="k-grid-2">
+    <div class="k-panel">
+      <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Stepper §3.7 und Tabs</h2></div></div>
+      <ol class="k-stepper"><li class="k-step" data-state="done"><span class="k-step__num">1</span> Import</li><li class="k-step" data-state="current"><span class="k-step__num">2</span> Review</li><li class="k-step" data-state="upcoming"><span class="k-step__num">3</span> PDCA</li></ol>
+      <div class="k-seg k-section" role="tablist"><button class="k-seg__tab" role="tab" aria-selected="true" type="button">A1_01 Herzinfarkt</button><button class="k-seg__tab" role="tab" aria-selected="false" type="button">G5_03 Brust</button></div>
+    </div>
+    <div class="k-panel">
+      <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Notizen und Disclosure §3.4</h2></div></div>
+      <div class="k-stack" id="notes"></div>
+      <details class="k-disclosure k-section" data-k-persist="gallery-demo"><summary><i data-k-icon="chevron-right" class="k-chevron"></i>Methodik</summary><div class="k-disclosure__body"><p>Tiefe ist einen Schritt entfernt. Der Zustand wird pro Schlüssel gespeichert.</p></div></details>
+    </div>
+  </section>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Diagramm-Legende §4</h2></div></div>
+    <div class="k-legend">
+      <span class="k-legend__item"><span class="k-swatch"></span>Institutionen</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--needle"></span>Ihre Institution</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--ref"></span>CH-Wert</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--dashed"></span>95%</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--line"></span>99.8%</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--high"></span>▲ Anstieg</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--low"></span>▼ Rückgang</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--solid"></span>publiziert</span>
+      <span class="k-legend__item"><span class="k-swatch k-swatch--hatch"></span>vorläufig</span>
+    </div>
+  </section>
+
+  <section class="k-panel">
+    <div class="k-panel__head"><div class="k-panel__heading"><h2 class="k-panel__title">Zahlen §3.1</h2><span class="k-meta">KompassUI.fmt</span></div></div>
+    <div class="k-table-wrap"><table class="k-table k-table--compact k-table--auto" id="formats"></table></div>
+  </section>
+
+  <footer class="k-footer"><div class="k-footer__line"><span>Galerie</span><span class="k-strong">Statistische Auffälligkeit ist ein Prüfhinweis, kein Qualitätsurteil.</span></div></footer>
+</div>
+<script>
+(function () {
+  var UI = window.KompassUI, F = UI.fmt, $ = function (id) { return document.getElementById(id); };
+  $('theme').addEventListener('change', function (e) {
+    if (e.target.value) document.documentElement.setAttribute('data-theme', e.target.value);
+    else document.documentElement.removeAttribute('data-theme');
+  });
+  var TOKENS = ['canvas', 'card', 'muted', 'border', 'input', 'foreground', 'subtle-foreground', 'muted-foreground', 'hover', 'selected',
+    'chrome', 'needle', 'primary', 'destructive', 'chart-point', 'chart-limit', 'high', 'low', 'deviant', 'inconspicuous', 'ok', 'caution'];
+  $('swatches').innerHTML = TOKENS.map(function (t) {
+    return '<div class="k-row k-row--center"><span class="k-swatch" data-token="' + t + '"></span><span class="k-meta">--k-' + t + '</span></div>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('[data-token]'), function (el) {
+    el.style.background = 'var(--k-' + el.getAttribute('data-token') + ')';
+    el.style.boxShadow = 'inset 0 0 0 1px var(--k-border)';
+    el.style.width = el.style.height = '20px';
+  });
+  $('signals').innerHTML = Object.keys(UI.SIGNALS).map(function (s) { return UI.badge({ signal: s }); }).join('');
+  $('trends').innerHTML = '<span class="k-meta">Trend:</span>' + ['high', 'low', 'inconspicuous', null].map(UI.trendMark).join(' ');
+  $('tones').innerHTML = ['ok', 'caution', 'danger', 'info', 'neutral'].map(function (t) { return UI.badge({ tone: t, label: t }); }).join('') + UI.badge({ tone: 'caution', icon: 'alert', label: 'Kodierverzug möglich' });
+  $('toneLines').innerHTML = [UI.tone('ok', 'Auswertung abgeschlossen'), UI.tone('caution', '2 Warnungen'), UI.tone('danger', 'Fehler: Datei unlesbar')].map(function (t) { return '<div>' + t + '</div>'; }).join('');
+  $('readouts').innerHTML = UI.readout({ label: 'Signifikant erhöht', value: '31', meta: 'G.1.4.P, A.1.10.M …', signal: 'high' }) +
+    UI.readout({ label: 'Signifikant tiefer', value: '0', meta: 'keine unter Erwartung' }) +
+    UI.readout({ label: 'Trendwarnungen 2024', value: F.missing, meta: 'Trendvergleich nicht verfügbar' }) +
+    UI.readout({ label: 'Fallzahl-Monitor Z.4', value: '9', meta: 'klein oder rückläufig' });
+  var rows = [['A.1.1.M', 'HD Herzinfarkt (Alter >19), Mortalität', 650, 6.9, 3.3, 2.1, 5.1, 'high', true],
+    ['G.5.3.P', 'Anteil brusterhaltende Resektionen bei Brustkrebs', 163, 73.6, 76.0, 0.97, -0.7, 'inconspicuous', false],
+    ['E.4.2.M', 'Ein sehr langer Indikatorname, der in der Spalte gekürzt und per Hover vollständig lesbar ist', 8, null, null, null, null, 'not-assessable', false]];
+  $('table').innerHTML = '<colgroup><col><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-signal"></colgroup>' +
+    '<thead><tr><th>Indikator</th><th class="k-num">Fälle</th><th class="k-num">Rate</th><th class="k-num">Erwartung</th><th class="k-num">O/E</th><th class="k-num">z</th><th>Signal</th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      return '<tr data-row-action aria-selected="' + r[8] + '"><td><span class="k-trunc" title="' + UI.esc(r[0] + ' ' + r[1]) + '"><b>' + r[0] + '</b> ' + UI.esc(r[1]) + '</span></td>' +
+        '<td class="k-num">' + F.n(r[2]) + '</td><td class="k-num">' + F.pct(r[3]) + '</td><td class="k-num">' + F.pct(r[4]) + '</td>' +
+        '<td class="k-num">' + F.oe(r[5]) + '</td><td class="k-num">' + F.z(r[6]) + '</td><td>' + UI.badge({ signal: r[7] }) + '</td></tr>';
+    }).join('') + '</tbody>';
+  $('notes').innerHTML = ['ok', 'caution', 'danger'].map(function (t) {
+    return '<div class="k-note" data-tone="' + t + '">' + UI.icon(t === 'ok' ? 'check' : (t === 'caution' ? 'alert' : 'x')) + '<div>Einzeilige Rückmeldung (' + t + ')</div></div>';
+  }).join('') + '<div class="k-note">' + UI.icon('info') + '<div>Neutrale Notiz</div></div>';
+  var fm = [['fmt.n(1234)', F.n(1234)], ['fmt.oe(1.234)', F.oe(1.234)], ['fmt.pct(73.6)', F.pct(73.6)], ['fmt.share(0.75)', F.share(0.75)],
+    ['fmt.z(-1.06)', F.z(-1.06)], ['fmt.z(2.44)', F.z(2.44)], ['fmt.n(null)', F.n(null)], ['fmt.period("19")', F.period('19')], ['fmt.date("2026-09-24")', F.date('2026-09-24')]];
+  $('formats').innerHTML = '<thead><tr><th>Aufruf</th><th class="k-num">Ausgabe</th></tr></thead><tbody>' +
+    fm.map(function (r) { return '<tr><td class="k-mono">' + UI.esc(r[0]) + '</td><td class="k-num">' + UI.esc(r[1]) + '</td></tr>'; }).join('') + '</tbody>';
+  $('dlg').addEventListener('click', function () { UI.confirm({ title: 'Entwürfe löschen?', body: 'Gilt für alle Indikatoren dieser Periode.', action: 'Entwürfe löschen', destructive: true }); });
+  $('busy').addEventListener('click', function () { var b = this; UI.busy(b, true); setTimeout(function () { UI.busy(b, false); }, 1200); });
+})();
+</script>
+</body>
+</html>
