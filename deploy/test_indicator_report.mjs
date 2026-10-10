@@ -22,6 +22,8 @@ const context = vm.createContext({
 // The page script depends on the shared UI kit (ui/kompass-ui.js), loaded first as in the page.
 vm.runInContext(fs.readFileSync(new URL('./ui/kompass-ui.js', import.meta.url), 'utf8'), context);
 context.KompassUI = context.window.KompassUI;
+// The QIP dataset is embedded as a JSON block (#qip-data) that the page script parses.
+el('qip-data').textContent = html.match(/<script type="application\/json" id="qip-data">([\s\S]*?)<\/script>/)[1];
 vm.runInContext(script, context);
 const evaluate = code => vm.runInContext(code, context);
 let checks = 0;

@@ -359,14 +359,22 @@
     loadErrors.push(message);
     flushLoadErrors();
   }
+  /** Report a caught exception with its type and first stack location. */
+  function reportError(err) {
+    var where = String((err && err.stack) || '').split('\n').filter(function (l) { return /:\d+/.test(l); })[0] || '';
+    var loc = (/([^\/\s(@]+:\d+(?::\d+)?)\)?\s*$/.exec(where) || [])[1];
+    reportLoadError('Fehler: ' + ((err && err.name) || 'Error') + ': ' + ((err && err.message) || err) + (loc ? ' (' + loc + ')' : ''));
+  }
   if (doc && root.addEventListener) {
     root.addEventListener('error', function (e) {
       var t = e.target;
       if (t && t !== root && (t.src || t.href)) {
         var src = String(t.src || t.href);
         reportLoadError('Datei nicht geladen: ' + src.slice(src.lastIndexOf('/', src.length - 2) + 1));
+      } else if (e.error) {
+        reportError(e.error);
       } else if (e.message) {
-        reportLoadError('Fehler: ' + e.message);
+        reportLoadError('Fehler: ' + e.message + (e.lineno ? ' (Zeile ' + e.lineno + ')' : ''));
       }
     }, true);
   }
@@ -439,7 +447,7 @@
     infoTip: infoTip, hint: hint, readout: readout,
     confirm: confirmDialog, busy: busy,
     token: token, hatch: hatch, chartTheme: chartTheme, onThemeChange: onThemeChange,
-    init: init, upgrade: upgrade, TOKEN_FALLBACK: TOKEN_FALLBACK, ICONS: ICONS
+    init: init, upgrade: upgrade, reportError: reportError, TOKEN_FALLBACK: TOKEN_FALLBACK, ICONS: ICONS
   };
   root.KompassUI = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
