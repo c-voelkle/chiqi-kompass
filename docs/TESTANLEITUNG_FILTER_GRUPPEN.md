@@ -84,7 +84,7 @@ Dieser Teil funktioniert auch ohne SpiGes-Datei.
 6. Optional Rechtsform, Aus-/Weiterbildung oder Merkmale des Leistungsprofils
    ergänzen. Bei **Fallzahl im Indikator** prüfen, dass sich die Klassengrenzen
    beim Wechsel des Indikators anpassen.
-7. **PDF für diesen Indikator** öffnen und die Beschreibung der Vergleichsgruppe
+7. **Indikatorbericht** öffnen und die Beschreibung der Vergleichsgruppe
    im Bericht prüfen.
 8. **Alle Betriebe** wählen: Die Gruppeneinschränkung muss aufgehoben werden.
 
