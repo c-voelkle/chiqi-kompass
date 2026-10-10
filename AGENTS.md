@@ -29,13 +29,23 @@ currently published copy.
     node deploy/ui/test_contrast.mjs        # WCAG contrast of all tokens
     node deploy/test_compare_ux.mjs
     node deploy/test_layout_browser.mjs     # needs Playwright; fit at 1536/1280, both themes
+    node deploy/chiqi/test_patient_filter.mjs          # patient group filter (no upstream needed)
+    node deploy/test_patient_filter_browser.mjs        # needs Playwright
+    node deploy/test_hospital_groups.mjs               # comparison groups + KZP24 data coverage
+    node deploy/test_hospital_groups_browser.mjs       # needs Playwright
 
 CI (`.github/workflows/design-system.yml`) runs the same checks. In Claude Code a
 PostToolUse hook (`.claude/hooks/design-check.sh`) runs the rules after every edit
 under `deploy/`. If a rule blocks a deliberate exception, change the design doc and
 the rule together and say why in the commit.
 
-Other tests (`test_indicator_report*.mjs`, `chiqi/test_*.mjs`,
+`deploy/kzp24_attributes.js` is generated from the BAG "Kennzahlen der Schweizer
+Spitäler" workbook and its time series:
+`python3 tools/build_kzp_attributes.py <kzp24_data.xlsx> <kzp24_KZ_TimeSerie.xlsx>` (needs
+openpyxl). Acute beds and CMI come from the time series (2024, else 2023). Name differences between the QIP and KZP publications are listed
+explicitly in `ALIASES` in that script; the build fails if a QIP Betrieb has no match.
+
+Other tests (`test_indicator_report*.mjs`, `chiqi/test_qm_workbench.mjs`, `chiqi/test_breast_indicator.mjs`,
 `test_breast_workflow_browser.mjs`) need the upstream source folders
 (`../chiqi-engine`, `../spiges`, `../qip24_data.json`) that are maintained outside
 this repository.

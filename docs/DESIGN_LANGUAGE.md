@@ -477,7 +477,9 @@ viewport. The standalone back link inside sub-pages uses the same band, reduced 
 
 `ControlStrip` (title `Cockpit QIP 2024`, Ebene, Institution, Periode | `PDF erstellen`) →
 one row of 4 `Readout`s (signifikant erhöht, signifikant tiefer, Trendwarnungen, Fallzahl-
-Monitor) → **O/E-Radar** panel (compact table) → **Funnel-Plot** and **Trendabweichungen** side
+Monitor) → **O/E-Radar** panel (compact table) → **Vergleichsgruppe** panel (two toolbars of
+group selects, Struktur and Leistungsprofil; its meta line names the group, its size and whether the institution belongs to
+it; `caution` badge *kleine Gruppe* under 10 members) → **Funnel-Plot** and **Trendabweichungen** side
 by side → **Eigene Daten im BAG-Vergleich** (with `Stepper` while a transfer is in progress) →
 **Fallzahl-Monitor** → footer line + `Disclosure` *Quelle & Methodik*.
 

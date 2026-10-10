@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="ui/kompass.css">
 <script src="ui/kompass-ui.js"></script>
 <script src="vendor/chart.umd.min.js"></script>
+<script src="kzp24_attributes.js"></script>
+<script src="hospital_groups.js"></script>
 </head>
 <body class="k-body">
 <header class="k-shell k-screen" data-k-standalone hidden>
@@ -77,14 +79,41 @@
     <p class="k-meta k-table-foot" id="r-more"></p>
   </section>
 
+  <section class="k-panel" id="group-card" aria-labelledby="group-title">
+    <div class="k-panel__head">
+      <div class="k-panel__heading">
+        <h2 class="k-panel__title" id="group-title">Vergleichsgruppe
+          <button class="k-infotip" data-k-tip="tip-group" aria-label="Über die Vergleichsgruppe"></button></h2>
+        <template id="tip-group-c"><p>Schränkt den Funnel-Plot auf Betriebe mit den gewählten Merkmalen ein. Referenzlinie und Kontrollgrenzen beziehen sich dann auf den gepoolten Rohwert der Gruppe (Summe der Ereignisse ÷ Summe der Fälle) statt auf den CH-Wert. Das O/E-Radar bleibt beim eigenen Erwartungswert.</p><p>Merkmale aus den BAG-Kennzahlen der Schweizer Spitäler 2024: Spitaltyp, Kanton, Rechtsform, Austritte, Notfall/IPS, Aus- und Weiterbildung; Akutbetten und CMI brutto aus der Zeitreihe 2024, sonst 2023. Herzkatheter: mindestens 100 Koronarkatheter-Fälle 2024 (A.3.1.F). Fallzahl: Drittel der Institutionen mit Fällen im gewählten Indikator. Grössen- und CMI-Klassen legt der CH-IQI Kompass fest. Standorte übernehmen die Kennzahlen ihres Betriebs.</p></template>
+        <span class="k-meta k-badges" id="group-meta"></span>
+      </div>
+      <div class="k-panel__actions">
+        <button class="k-btn k-btn--sm k-btn--ghost" id="group-reset" type="button" hidden><i data-k-icon="x"></i>Alle Betriebe</button>
+      </div>
+    </div>
+    <div class="k-panel__toolbar" id="group-bar" role="group" aria-label="Strukturmerkmale">
+      <label class="k-field"><span class="k-field__label">Spitaltyp</span><select class="k-select k-w-md" data-group="typ"></select></label>
+      <label class="k-field"><span class="k-field__label">Region</span><select class="k-select k-w-sm" data-group="region"></select></label>
+      <label class="k-field"><span class="k-field__label">Grösse</span><select class="k-select k-w-sm" data-group="size"></select></label>
+      <label class="k-field"><span class="k-field__label">Rechtsform</span><select class="k-select k-w-sm" data-group="rform"></select></label>
+      <label class="k-field"><span class="k-field__label">Aus- und Weiterbildung</span><select class="k-select k-w-sm" data-group="teach"></select></label>
+    </div>
+    <div class="k-panel__toolbar" id="group-bar-care" role="group" aria-label="Leistungsprofil">
+      <label class="k-field"><span class="k-field__label">Notfall / IPS</span><select class="k-select k-w-md" data-group="care"></select></label>
+      <label class="k-field"><span class="k-field__label">Herzkatheter</span><select class="k-select k-w-md" data-group="cath"></select></label>
+      <label class="k-field"><span class="k-field__label">CMI</span><select class="k-select k-w-sm" data-group="cmi"></select></label>
+      <label class="k-field"><span class="k-field__label">Fallzahl im Indikator</span><select class="k-select k-w-md" data-group="volume"></select></label>
+    </div>
+  </section>
+
   <section class="k-grid-2">
     <div class="k-panel">
       <div class="k-panel__head">
         <div class="k-panel__heading">
           <h2 class="k-panel__title" id="funnel-title">Funnel-Plot
             <button class="k-infotip" data-k-tip="tip-funnel" aria-label="Über den Funnel-Plot"></button></h2>
-          <template id="tip-funnel-c"><p>Vergleichsmassstab: beobachteter Schweizer Gesamtwert, ohne Risikoadjustierung. Alle Institutionen ohne Vergleichsgruppen, rohe Rate gegen Fallzahl (log-Skala).</p><p>Kontrollgrenzen 95% und 99.8% um den CH-Wert. Der Funnel ist Kontext, keine zweite O/E-Bewertung.</p></template>
-          <span class="k-meta">Massstab: CH-Rohwert, unadjustiert · <span id="funnel-sub"></span></span>
+          <template id="tip-funnel-c"><p>Vergleichsmassstab: beobachteter Schweizer Gesamtwert oder, mit gewählter Vergleichsgruppe, deren gepoolter Rohwert; ohne Risikoadjustierung. Rohe Rate gegen Fallzahl (log-Skala).</p><p>Kontrollgrenzen 95% und 99.8% um den Referenzwert. Der Funnel ist Kontext, keine zweite O/E-Bewertung.</p></template>
+          <span class="k-meta">Massstab: <span id="funnel-basis">CH-Rohwert</span>, unadjustiert · <span id="funnel-sub"></span></span>
         </div>
       </div>
       <div class="k-panel__toolbar">
@@ -93,9 +122,9 @@
         <button id="btn-pdf-indicator" type="button" class="k-btn"><i data-k-icon="file-text"></i>Indikatorbericht</button>
       </div>
       <div class="k-legend" aria-hidden="true">
-        <span class="k-legend__item"><span class="k-swatch"></span>Institutionen</span>
+        <span class="k-legend__item"><span class="k-swatch"></span><span id="funnel-points-label">Institutionen</span></span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--needle"></span>Ihre Institution</span>
-        <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--ref"></span>CH-Wert</span>
+        <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--ref"></span><span id="funnel-ref-label">CH-Wert</span></span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--line k-swatch--dashed"></span>95%</span>
         <span class="k-legend__item"><span class="k-swatch k-swatch--line"></span>99.8%</span>
       </div>
@@ -308,6 +337,77 @@ function chValue(code, per){ // offizieller CH-Wert (nur Betrieb vorhanden)
   return per==='19' ? r[2] : r[6];
 }
 
+// ---------- Vergleichsgruppe (BAG-Kennzahlen der Schweizer Spitäler) ----------
+// Merkmale je Betrieb aus kzp24_attributes.js. Standorte übernehmen die Merkmale
+// ihres Betriebs (Name «Betrieb - Standort, Adresse» in der QIP-Publikation).
+const HG=window.ChiqiHospitalGroups, KZP=(window.KZP24&&window.KZP24.betriebe)||null;
+const HAS_GROUPS=!!(HG&&KZP);
+const STANDORT_PARENT=(()=>{
+  const plain=x=>x.replace(/:/g,'');
+  const betriebe=IDX.betrieb.insts.filter(x=>!x.a).map(x=>x.n);
+  return IDX.standort.insts.map(x=>x.a?null:(betriebe.find(b=>plain(x.n).startsWith(plain(b)+' - '))||null));
+})();
+function kzpAttrs(level,i){
+  const name=level==='standort'?STANDORT_PARENT[i]:IDX.betrieb.insts[i].n;
+  return name?KZP[name]||null:null;
+}
+// Merkmale je Institution für Ebene, Indikator und Periode: Kennzahlen plus zwei
+// Werte aus der QIP-Publikation selbst, Herzkatheter-Fälle (A.3.1.F, 2024) und
+// das Fallzahl-Drittel im gewählten Indikator. Neu gebildet, wenn sich eines ändert.
+let groupCtx=null;
+function syncGroupContext(){
+  if(!HAS_GROUPS) return;
+  const s=state(), level=s.level, per=level==='standort'?'24':s.per, key=level+'|'+s.ind+'|'+per;
+  if(groupCtx&&groupCtx.key===key) return;
+  const idx=IDX[level];
+  const cath=new Map((idx.byCode.get('A.3.1.F')||[]).map(r=>[r[0],vals(r,level,'24').n]));
+  const vol=new Map((idx.byCode.get(s.ind)||[]).map(r=>[r[0],analysisVals(r,level,per).n]));
+  const bands=HG.makeVolumeBands(idx.insts.map((x,i)=>x.a?null:(vol.get(i)??null)));
+  HG.setVolumeBands(bands);
+  const attrs=idx.insts.map((x,i)=>x.a?null:{...(kzpAttrs(level,i)||{}),
+    cath:cath.has(i)?(cath.get(i)??0):null, volBand:bands?bands.bandOf(vol.get(i)??null):null});
+  groupCtx={key,attrs};
+  fillGroupOptions();
+}
+function groupAttrs(level,i){syncGroupContext();return groupCtx?groupCtx.attrs[i]:null;}
+const groupSelects=[...document.querySelectorAll('#group-card [data-group]')];
+function groupFilter(){
+  const f=HAS_GROUPS?HG.emptyFilter():{};
+  groupSelects.forEach(sel=>{f[sel.dataset.group]=sel.value;});
+  return f;
+}
+function groupActive(){return HAS_GROUPS&&HG.isActive(groupFilter());}
+function fillGroupOptions(){
+  if(!HAS_GROUPS){$('group-card').hidden=true;return;}
+  const opts=HG.options(groupCtx.attrs);
+  for(const sel of groupSelects){
+    const cur=sel.value;
+    sel.innerHTML='<option value="">alle</option>'+opts[sel.dataset.group].map(g=>g.options.length?
+      `<optgroup label="${UI.esc(g.group)}">`+g.options.map(o=>`<option value="${UI.esc(o.value)}">${UI.esc(o.label)} (${fmtN(o.count)})</option>`).join('')+'</optgroup>':'').join('');
+    sel.value=[...sel.options].some(o=>o.value===cur)?cur:'';
+  }
+}
+// Mitglieder der aktuellen Gruppe auf der gewählten Ebene (nur echte Institutionen).
+function groupMembers(){
+  const level=$('f-level').value, insts=IDX[level].insts, f=groupFilter(), out=[];
+  insts.forEach((x,i)=>{if(!x.a&&HG.matches(groupAttrs(level,i),f)) out.push(i);});
+  return out;
+}
+function renderGroupMeta(){
+  if(!HAS_GROUPS) return;
+  syncGroupContext();
+  const s=state(), level=s.level, insts=IDX[level].insts, unit=level==='standort'?'Standorte':'Betriebe';
+  const total=insts.filter(x=>!x.a).length, active=groupActive();
+  $('group-reset').hidden=!active;
+  if(!active){$('group-meta').textContent=`alle ${fmtN(total)} ${unit} · Referenz CH-Wert`;return;}
+  const members=groupMembers(), inst=insts[s.i];
+  const own=inst&&!inst.a?(members.includes(s.i)?'Ihre Institution gehört zur Gruppe':'Ihre Institution gehört nicht zur Gruppe'):'';
+  // Unter 10 Mitgliedern ist der Gruppenwert instabil: sichtbar markieren (§1, Prinzip 1).
+  $('group-meta').innerHTML=`<span>${UI.esc(HG.describe(groupFilter())+' · '+fmtN(members.length)+' von '+fmtN(total)+' '+unit+'n'+(own?' · '+own:''))}</span>`+
+    (members.length<10?UI.badge({tone:'caution',label:members.length?'kleine Gruppe':'keine Betriebe'}):'');
+}
+function groupRefText(){return groupActive()?'den Wert der Vergleichsgruppe':'den Schweizer Gesamtwert';}
+
 // ---------- Statistik ----------
 function zScore(po,pe,n,observed=null){ // Raten in %, n Bezugsfälle
   if(po===null||pe===null||n===null||n<10) return null;
@@ -365,7 +465,7 @@ function assessMfz(level, iIdx, per){
 }
 
 // ---------- Rendering ----------
-let funnelChart=null, trendChart=null, ownHistoryChart=null, radarRows=[];
+let funnelChart=null, trendChart=null, ownHistoryChart=null, radarRows=[], funnelRef=null;
 function state(){return {level:$('f-level').value, i:+$('f-inst').value, per:$('f-per').value, ind:$('f-ind').value};}
 
 function renderKPIs(rows,mfz){
@@ -444,7 +544,7 @@ function renderFunnelReading(radar,point,p0){
   const funnelBadge=`<span class="k-meta">Funnel</span>${UI.badge({tone:'neutral',label:funnelLabel})}`;
 
   if(!radar){
-    target.innerHTML=`<div class="k-badges"><span class="k-meta">O/E</span><span class="k-meta k-strong">nicht Teil der Triage</span>${funnelBadge}</div><div><b>Zusammen lesen:</b> Der Funnel beschreibt hier nur die rohe Rate im nationalen Feld; daraus entsteht kein risikoadjustiertes O/E-Urteil.</div>`;
+    target.innerHTML=`<div class="k-badges"><span class="k-meta">O/E</span><span class="k-meta k-strong">nicht Teil der Triage</span>${funnelBadge}</div><div><b>Zusammen lesen:</b> Der Funnel beschreibt hier nur die rohe Rate ${groupActive()?'in der Vergleichsgruppe':'im nationalen Feld'}; daraus entsteht kein risikoadjustiertes O/E-Urteil.</div>`;
     return;
   }
   const radarSignal=['alert','low','dev'].includes(radar.status);
@@ -458,12 +558,12 @@ function renderFunnelReading(radar,point,p0){
       const radarDirection=radar.z>0?1:-1;
       explanation=radarDirection===funnelDirection
         ?'Beide Ansichten zeigen ein Signal in derselben zahlenmässigen Richtung. Da sie unterschiedliche Vergleichsmassstäbe verwenden, bleibt dies ein Prüfhinweis und kein Qualitätsurteil.'
-        :'Die Ansichten zeigen Signale in unterschiedlichen Richtungen. Das kann durch den Wechsel zwischen risikoadjustierter Erwartung und Schweizer Rohwert entstehen; Risikoprofil, Kodierung und Falldefinition sollten vor einer klinischen Interpretation geprüft werden.';
+        :`Die Ansichten zeigen Signale in unterschiedlichen Richtungen. Das kann durch den Wechsel zwischen risikoadjustierter Erwartung und ${groupActive()?'Rohwert der Vergleichsgruppe':'Schweizer Rohwert'} entstehen; Risikoprofil, Kodierung und Falldefinition sollten vor einer klinischen Interpretation geprüft werden.`;
     }
   }else if(radarSignal&&!funnelSignal){
-    explanation='Für das erwartete Risikoprofil der Institution ist das Ergebnis prüfenswert; die rohe Rate ist zugleich mit der Zufallsstreuung um den Schweizer Gesamtwert vereinbar. Diese Kombination ist möglich und kein Rechenfehler.';
+    explanation=`Für das erwartete Risikoprofil der Institution ist das Ergebnis prüfenswert; die rohe Rate ist zugleich mit der Zufallsstreuung um ${groupRefText()} vereinbar. Diese Kombination ist möglich und kein Rechenfehler.`;
   }else if(!radarSignal&&funnelSignal){
-    explanation='Die rohe Rate liegt ausserhalb der Streuungsgrenzen um den Schweizer Gesamtwert; gemessen an den erwarteten Ereignissen der Institution zeigt das O/E-Radar jedoch kein Signal. Ein abweichendes Patientengut kann diesen Unterschied erklären.';
+    explanation=`Die rohe Rate liegt ausserhalb der Streuungsgrenzen um ${groupRefText()}; gemessen an den erwarteten Ereignissen der Institution zeigt das O/E-Radar jedoch kein Signal. Ein abweichendes Patientengut kann diesen Unterschied erklären.`;
   }else{
     explanation='In keiner der beiden Ansichten entsteht ein statistisches Signal. Das bedeutet nur «in diesen Vergleichen nicht auffällig» und ist keine umfassende Aussage über die Behandlungsqualität.';
   }
@@ -471,26 +571,39 @@ function renderFunnelReading(radar,point,p0){
 }
 
 function renderFunnel(){
+  renderGroupMeta(); // Fallzahl-Drittel und Mitglieder hängen vom Indikator ab
   const s=state(), meta=CODEMAP.get(s.ind), idx=IDX[s.level];
   const per = s.level==='standort'?'24':s.per;
-  const pts=[],ownPts=[];
+  const pts=[],ownPts=[], grouped=groupActive(), gf=groupFilter();
+  let ownInGroup=!grouped;
   for(const row of (idx.byCode.get(s.ind)||[])){
     const inst=idx.insts[row[0]];
     if(inst.a) continue;
     const v=analysisVals(row,s.level,per);
     if(v.n===null||v.n<1||v.po===null) continue;
-    (row[0]===s.i?ownPts:pts).push({x:v.n,y:v.po,label:inst.n});
+    const member=!grouped||HG.matches(groupAttrs(s.level,row[0]),gf);
+    // Die eigene Institution bleibt sichtbar, auch wenn sie nicht zur Gruppe gehört.
+    if(row[0]===s.i){ownPts.push({x:v.n,y:v.po,label:inst.n});ownInGroup=member;}
+    else if(member) pts.push({x:v.n,y:v.po,label:inst.n});
   }
-  let p0=chValue(s.ind,per);
+  // Referenz: CH-Wert, mit Vergleichsgruppe deren gepoolter Rohwert (eigene Institution nur als Mitglied).
+  let p0=grouped?HG.pooledRate(ownInGroup?pts.concat(ownPts):pts):chValue(s.ind,per);
   if(p0===null){ // Fallback: gewichteter Mittelwert
     let sn=0,so=0; for(const p of pts.concat(ownPts)){sn+=p.x;so+=p.y/100*p.x;}
     p0=sn>0?so/sn*100:0;
   }
+  $('funnel-basis').textContent=grouped?'Rohwert Vergleichsgruppe':'CH-Rohwert';
+  $('funnel-ref-label').textContent=grouped?'Gruppenwert':'CH-Wert';
+  $('funnel-points-label').textContent=grouped?'Vergleichsgruppe':'Institutionen';
+  $('funnel').setAttribute('aria-label',grouped
+    ?'Funnel-Plot: rohe Rate gegen Fallzahl der Vergleichsgruppe mit Kontrollgrenzen um den Gruppenwert'
+    :'Funnel-Plot: rohe Rate gegen Fallzahl aller Institutionen mit Kontrollgrenzen');
+  funnelRef={p0,grouped,label:grouped?HG.describe(gf):'',members:pts.length+(ownInGroup?ownPts.length:0)};
   const all=pts.concat(ownPts);
   if(!all.length){
     if(funnelChart)funnelChart.destroy();
     funnelChart=null;
-    $('funnel-sub').textContent=`${meta?meta.c:s.ind} · keine Daten`;
+    $('funnel-sub').textContent=`${meta?meta.c:s.ind} · keine Daten${grouped?' in der Vergleichsgruppe':''}`;
     renderFunnelReading(radarRows.find(r=>r.code===s.ind),null,p0);
     return;
   }
@@ -508,13 +621,13 @@ function renderFunnel(){
   if(funnelChart)funnelChart.destroy();
   if(HAS_CHART) funnelChart=new Chart($('funnel').getContext('2d'),{
     data:{datasets:[
-      {type:'scatter',label:'Institutionen',data:pts,backgroundColor:T('chart-point'),pointRadius:3,pointHoverRadius:4,order:2},
+      {type:'scatter',label:grouped?'Vergleichsgruppe':'Institutionen',data:pts,backgroundColor:T('chart-point'),pointRadius:3,pointHoverRadius:4,order:2},
       {type:'scatter',label:'Ihre Institution',data:ownPts,backgroundColor:T('card'),borderColor:T('needle'),borderWidth:2.5,pointRadius:6,pointHoverRadius:7,order:1},
       Object.assign(lim(l95u,[5,4]),{label:'95%'}),
       Object.assign(lim(l95l,[5,4]),{label:'95u'}),
       Object.assign(lim(l998u,[]),{label:'99.8%'}),
       Object.assign(lim(l998l,[]),{label:'99.8u'}),
-      {type:'line',label:'CH',data:[{x:minN,y:p0},{x:maxN,y:p0}],borderColor:T('chart-reference'),borderWidth:1,pointRadius:0,order:4}
+      {type:'line',label:grouped?'Gruppe':'CH',data:[{x:minN,y:p0},{x:maxN,y:p0}],borderColor:T('chart-reference'),borderWidth:1,pointRadius:0,order:4}
     ]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,parsing:false,
       plugins:{legend:{display:false},tooltip:{filter:c=>!!c.raw.label,callbacks:{title:items=>items.length?items[0].raw.label:'',label:c=>`Rate ${fmtP(c.raw.y)} · n ${fmtN(c.raw.x)}`}}},
@@ -731,12 +844,18 @@ function renderAll(){
 (function init(){
 try{
   fillInstitutions(); fillIndicators(); fillOwnInstitutions(); fillOwnIndicators();
+  if(!HAS_GROUPS) $('group-card').hidden=true;
   if(HAS_CHART){
     UI.chartTheme(Chart);
     UI.onThemeChange(()=>{UI.chartTheme(Chart);renderAll();});
   }
   syncOwnModeLayout(!!ownTransfer);
   $('f-level').addEventListener('change',()=>{fillInstitutions();renderAll();});
+  groupSelects.forEach(sel=>sel.addEventListener('change',renderFunnel));
+  $('group-reset').addEventListener('click',()=>{
+    groupSelects.forEach(sel=>{sel.value='';});
+    renderFunnel(); groupSelects[0].focus();
+  });
   $('f-inst').addEventListener('change',()=>{
     if(ownTransfer&&$('f-level').value==='betrieb'&&[...$('own-inst').options].some(o=>o.value===$('f-inst').value)){
       $('own-inst').value=$('f-inst').value;
@@ -901,7 +1020,9 @@ function buildReport(scope='all'){
 
   if(funnelChart) html+=`<div class="rep-fig"><h2>Funnel-Plot: ${repEsc($('funnel-sub').title||$('funnel-sub').textContent)}</h2>
   <img class="rep-chart" src="${funnelChart.toBase64Image()}">
-  <p class="rep-note">Punkte: alle Institutionen \u00b7 Ring: ${repEsc(inst.n)} \u00b7 Linie: CH-Wert \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustierte nationale Einordnung.</p>
+  <p class="rep-note">${funnelRef&&funnelRef.grouped
+    ?`Punkte: Vergleichsgruppe ${repEsc(funnelRef.label)} (${fmtN(funnelRef.members)} mit Werten) \u00b7 Ring: ${repEsc(inst.n)} \u00b7 Linie: gepoolter Rohwert der Gruppe ${fmtP(funnelRef.p0)} \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustiert; Gruppenmerkmale aus den BAG-Kennzahlen der Schweizer Spit\u00e4ler 2024.`
+    :`Punkte: alle Institutionen \u00b7 Ring: ${repEsc(inst.n)} \u00b7 Linie: CH-Wert \u00b7 gestrichelt: 95%-, durchgezogen: 99.8%-Kontrollgrenze (log-Skala). Nicht risikoadjustierte nationale Einordnung.`}</p>
   <p class="rep-note"><b>Zusammen gelesen mit O/E:</b> ${repEsc($('funnel-reading').textContent.replace('Zusammen lesen:',''))}</p></div>`;
   if(trendChart) html+=`<div class="rep-fig"><h2>Gr\u00f6sste Trendabweichungen 2024 vs. eigene Baseline</h2><img class="rep-chart" src="${trendChart.toBase64Image()}"><p class="rep-note">Grau: Ver\u00e4nderung statistisch nicht signifikant (|z| \u2264 1.96).</p></div>`;
 
@@ -949,9 +1070,11 @@ function buildIndicatorReport(){
     ${mortality?'Das O/E-Verhältnis bezieht sich auf die publizierte Erwartung, nicht auf einen Behandlungsqualitätsnachweis.':'Höhere oder tiefere Anteile sind nicht automatisch besser. Die Daten allein erklären weder Indikationsstellung noch Zusammensetzung des Patientenkollektivs.'}</p>
     <p>${trend}</p>`;
   if(infer&&funnelChart&&v.n>0&&v.po!==null&&p0!==null){
-    html+=`<div class="rep-fig"><h2>Nationale Einordnung: ${repEsc(s.ind)}</h2>
+    html+=`<div class="rep-fig"><h2>${funnelRef&&funnelRef.grouped?'Einordnung in der Vergleichsgruppe':'Nationale Einordnung'}: ${repEsc(s.ind)}</h2>
       <img class="rep-chart" alt="Funnel-Plot zum ausgewählten Indikator" src="${funnelChart.toBase64Image()}">
-      <p class="rep-note">Ring: gewählte Institution · Punkte: andere ${s.level==='standort'?'Standorte':'Betriebe'} · Linie: CH ${fmtP(p0)} · gestrichelt: 95% · durchgezogen: 99.8%. Rohe Raten, keine Risikoadjustierung oder Rangliste.</p></div>`;
+      <p class="rep-note">${funnelRef&&funnelRef.grouped
+        ?`Ring: gewählte Institution · Punkte: Vergleichsgruppe ${repEsc(funnelRef.label)} · Linie: gepoolter Rohwert der Gruppe ${fmtP(funnelRef.p0)} (CH ${fmtP(p0)}) · gestrichelt: 95% · durchgezogen: 99.8%. Rohe Raten, keine Risikoadjustierung oder Rangliste.`
+        :`Ring: gewählte Institution · Punkte: andere ${s.level==='standort'?'Standorte':'Betriebe'} · Linie: CH ${fmtP(p0)} · gestrichelt: 95% · durchgezogen: 99.8%. Rohe Raten, keine Risikoadjustierung oder Rangliste.`}</p></div>`;
   }else html+='<p>Nationale Grafik nicht verfügbar: publizierte Rate, verifizierte Bezugsfallzahl oder Schweizer Referenz fehlen.</p>';
   html+=`<h2>Fragen für den fachlichen Austausch</h2>
     <p>${verified?'Wie wird dieser Anteil heute im Brustzentrum aufbereitet und besprochen? Welche zusätzlichen Informationen zum Patientenkollektiv, zur Indikationsstellung und zu den Falldefinitionen braucht das Team zur Einordnung?':'Wie wird dieser Indikator heute aufbereitet und besprochen? Welche Informationen zu Falldefinition, Kodierung und Patientenkollektiv fehlen für eine fachliche Einordnung?'}</p>
