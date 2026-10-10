@@ -21,11 +21,15 @@ assert.match(cockpit, /ownMappingForCockpit\(\$\('own-ind'\)\.value\)/);
 assert.match(cockpit, /\$\('f-ind'\)\.addEventListener\('change',renderFunnel\)/);
 assert.match(cockpit, /\$\('r-view'\)\.addEventListener\('change',renderRadar\)/);
 assert.doesNotMatch(cockpit, /\$\('r-view'\)\.addEventListener\('change',renderOwnHistory\)/);
-assert.match(cockpit, /Diese Auswahl wirkt nur auf die Radartabelle\./);
+// The scope select lives inside the radar panel's own header, so its reach is evident.
+assert.match(cockpit, /id="radar-card"[^]*?id="r-view"[^]*?id="radar"/);
 console.log('  ✔ Radar, Funnel und unterjähriger Vergleich sind entkoppelt');
 
 console.log('Test 2b: O/E und Funnel werden als verschiedene Fragen erklärt');
-assert.match(cockpit, /Zwei Ansichten, zwei verschiedene Fragen/);
+// Each panel carries its comparison basis; the explanation sits one step away.
+assert.match(cockpit, /Massstab: eigene Erwartung/);
+assert.match(cockpit, /Massstab: CH-Rohwert, unadjustiert/);
+assert.match(cockpit, /Warum Radar und Funnel abweichen können/);
 assert.match(cockpit, /Vergleichsmassstab: erwartete Ereignisse der gewählten Institution/);
 assert.match(cockpit, /Vergleichsmassstab: beobachteter Schweizer Gesamtwert, ohne Risikoadjustierung/);
 assert.match(cockpit, /id="funnel-reading"/);

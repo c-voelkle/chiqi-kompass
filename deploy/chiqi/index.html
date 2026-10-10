@@ -3,264 +3,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>CH-IQI Kompass: Unterjährige Indikator-Auswertung und QM-Workbench (Pilot)</title>
+<meta name="theme-color" content="#12294B" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1A2E" media="(prefers-color-scheme: dark)">
+<title>CH-IQI Kompass: Unterjährige Auswertung</title>
+<link rel="icon" href="ui/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="ui/kompass.css">
+<script src="ui/kompass-ui.js"></script>
 <script src="spiges_parser.js"></script>
 <script src="chiqi_engine.js"></script>
 <script src="chiqi_demo_defs.js"></script>
 <script src="qm_workbench.js"></script>
-<style>
-  :root { --blau:#1c4e80; --hell:#f4f7fa; --rand:#d5dee8; --gruen:#2e7d32; --rot:#b71c1c; --orange:#e65100; }
-  * { box-sizing:border-box; }
-  body { font-family:"Segoe UI",system-ui,sans-serif; margin:0; background:var(--hell); color:#1a2733; }
-  header { background:var(--blau); color:#fff; padding:1rem 1.5rem; }
-  header h1 { margin:0; font-size:1.2rem; font-weight:600; }
-  header p { margin:.25rem 0 0; font-size:.85rem; opacity:.85; }
-  main { max-width:1180px; margin:1.5rem auto; padding:0 1rem; }
-  .card { background:#fff; border:1px solid var(--rand); border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1.25rem; }
-  #drop { border:2px dashed var(--blau); border-radius:8px; padding:2rem; text-align:center; cursor:pointer; }
-  #drop.hover { background:#e8f0f8; }
-  #drop strong { color:var(--blau); }
-  .privacy { font-size:.85rem; color:#3e5165; background:#eef6ee; border:1px solid #cde3cd; border-radius:6px; padding:.6rem .9rem; margin-top:.75rem; }
-  table { border-collapse:collapse; width:100%; font-size:.9rem; }
-  th,td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--rand); vertical-align:top; }
-  th { background:var(--hell); font-weight:600; }
-  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .hint { font-size:.8rem; color:#6a7f94; }
-  .warnbox { font-size:.85rem; color:#7a4a00; background:#fff7e6; border:1px solid #ffe0a3; border-radius:6px; padding:.6rem .9rem; margin-top:1rem; }
-  h2 { font-size:1.05rem; color:var(--blau); margin-top:0; }
-  .smr-hoch { color:var(--orange); font-weight:600; }
-  .smr-na { color:#8a9aab; }
-  #status { font-size:.9rem; margin-top:.6rem; }
-  .ok { color:var(--gruen); } .err { color:var(--rot); }
-  .badge { display:inline-block; font-size:.72rem; background:var(--hell); border:1px solid var(--rand); border-radius:4px; padding:.1rem .45rem; margin-left:.4rem; color:#51677d; }
-  #btnPdf { float:right; background:var(--blau); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; font-size:.85rem; cursor:pointer; }
-  #btnPdf:hover { opacity:.9; }
-  #btnCockpit { float:right; background:var(--gruen); color:#fff; border:0; border-radius:6px; padding:.45rem .9rem; margin-right:.5rem; font-size:.85rem; cursor:pointer; }
-  #btnCockpit:hover { opacity:.9; }
-  .transfer-note { clear:both; padding-top:.65rem; }
-  .print-only { display:none; }
-  @media print {
-    body { background:#fff; }
-    header, #importCard, #status, #btnPdf, #btnCockpit, #standaloneNav { display:none !important; }
-    main { max-width:none; margin:0; padding:0; }
-    .card { border:0; box-shadow:none; padding:.4rem 0; margin-bottom:.8rem; break-inside:avoid; }
-    .print-only { display:block !important; }
-    details > summary { list-style:none; cursor:default; }
-    .warnbox { break-inside:avoid; }
-    a { text-decoration:none; color:inherit; }
-  }
-/* --- PDF-Bericht (Berichtsschale wie Cockpit) --- */
-#report{display:none}
-body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#fff;padding:24px}
-@media screen{body.rep-mode header,body.rep-mode main,body.rep-mode #standaloneNav{display:none}}
-@media print{
-  body.rep-mode header,body.rep-mode main,body.rep-mode #standaloneNav{display:none!important}
-  body.rep-mode #report{display:block;max-width:none;padding:0}
-  body.rep-mode{background:#fff}
-  @page{size:A4;margin:15mm 14mm 18mm;
-    @top-left{content:''}@top-center{content:''}@top-right{content:''}
-    @bottom-left{content:''}@bottom-right{content:''}
-    @bottom-center{content:counter(page);font-family:"Segoe UI",system-ui,sans-serif;font-size:9px;color:#9aa3ad}
-  }
-  @page:first{@bottom-center{content:''}}
-  .rep-page{page-break-after:always}
-  .rep-cover{min-height:245mm}
-}
-#report h2{font-size:14px;margin:20px 0 8px;color:var(--blau);border-bottom:2px solid var(--blau);padding-bottom:3px;page-break-after:avoid}
-#report table{font-size:10.5px}
-#report th,#report td{padding:.3rem .5rem}
-#report tr{page-break-inside:avoid}
-#report thead{display:table-header-group}
-#report p{font-size:11px;line-height:1.6;margin:6px 0}
-.rep-cover{display:flex;flex-direction:column;justify-content:space-between;min-height:640px}
-.rep-brand{font-size:14px;font-weight:700;color:var(--blau);letter-spacing:.5px}
-.rep-cover-title{font-size:28px;font-weight:700;color:var(--blau);margin:90px 0 14px}
-.rep-cover-inst{font-size:18px;color:#1c3d6e;font-weight:600}
-.rep-cover-meta{font-size:12px;color:#66707c;margin-top:10px;line-height:1.7}
-.rep-proto{font-size:11px;background:#e0a90f;color:#fff;padding:2px 8px;border-radius:12px;vertical-align:middle;letter-spacing:.5px}
-.rep-cover-kpis{display:flex;gap:14px;margin:36px 0}
-.rep-ck{flex:1;border:1px solid var(--rand);border-radius:8px;padding:10px 12px}
-.rep-ck b{display:block;font-size:22px;color:var(--blau)}
-.rep-ck span{font-size:10.5px;color:#66707c}
-.rep-disclaimer{border:1px solid #d9dee5;background:#f6f8fa;border-radius:8px;padding:12px 14px;font-size:10.5px;color:#4a5563;line-height:1.6}
-.rep-cover-foot{font-size:10px;color:#66707c;margin-top:16px}
-.rep-sub{font-size:11.5px;color:#66707c;margin-top:4px}
-.rep-exec{font-size:11.5px;line-height:1.65}
-.rep-note{font-size:10px;color:#66707c;margin-top:4px}
-  .rep-foot{margin-top:18px;font-size:10px;color:#66707c;line-height:1.6}
-  .rep-foot h2{font-size:12px}
-  /* --- Lokale QM-Workbench --- */
-  .wb-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
-  .wb-head h2{margin-bottom:.25rem}
-  .wb-actions{display:flex;gap:.45rem;flex-wrap:wrap}
-  .btn{border:1px solid var(--rand);border-radius:6px;background:#fff;color:var(--blau);padding:.45rem .75rem;font-size:.82rem;cursor:pointer;font-weight:600}
-  .btn:hover{background:#eef4fa}.btn.primary{background:var(--blau);color:#fff;border-color:var(--blau)}
-  .btn.danger{color:var(--rot);border-color:#e5bcbc}.btn:disabled{opacity:.45;cursor:not-allowed}
-  .wb-privacy{font-size:.82rem;color:#3e5165;background:#eef6ee;border:1px solid #cde3cd;border-radius:6px;padding:.65rem .8rem;margin:.85rem 0}
-  .wb-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin:1rem 0}
-  .wb-tab{border:1px solid var(--rand);background:#fff;color:var(--blau);border-radius:999px;padding:.45rem .8rem;cursor:pointer;font-weight:600}
-  .wb-tab.active{background:var(--blau);color:#fff;border-color:var(--blau)}
-  .wb-stats{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:.65rem;margin:.8rem 0 1rem}
-  .wb-stat{border:1px solid var(--rand);border-radius:7px;padding:.65rem .75rem;background:#fbfcfd}
-  .wb-stat b{display:block;color:var(--blau);font-size:1.15rem;font-variant-numeric:tabular-nums}
-  .wb-stat span{font-size:.75rem;color:#66798c}
-  .signal{display:inline-block;border-radius:999px;padding:.18rem .55rem;font-size:.75rem;font-weight:700}
-  .signal.high,.signal.blocked{color:#8e190f;background:#fce8e6}
-  .signal.small{color:#7a4a00;background:#fff3d6}.signal.normal{color:#176a35;background:#e8f5ec}
-  .signal.low{color:#1b5e20;background:#e8f5e9}
-  .signal.process{color:#235a80;background:#eaf1f8}
-  .wb-progress{display:grid;grid-template-columns:repeat(6,1fr);gap:.35rem;margin:.9rem 0 1.15rem}
-  .wb-step{text-align:center;border-top:4px solid #cfd8e2;padding:.38rem .2rem;font-size:.72rem;color:#6a7f94}
-  .wb-step.done{border-color:var(--gruen);color:#205d2a;font-weight:600}
-  .wb-section{border-top:1px solid var(--rand);padding-top:1rem;margin-top:1rem}
-  .wb-section h3{font-size:1rem;color:var(--blau);margin:.1rem 0 .65rem}
-  .wb-toolbar{display:flex;gap:.7rem;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:.55rem 0}
-  .field{display:flex;flex-direction:column;gap:.25rem;min-width:150px;flex:1}
-  .field label,.field-label{font-size:.75rem;color:#52697f;font-weight:600}
-  .field input,.field select,.field textarea{width:100%;border:1px solid #bfcbd7;border-radius:5px;padding:.46rem .55rem;font:inherit;font-size:.85rem;background:#fff;color:#1a2733}
-  .field textarea{min-height:72px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid #8fb4d7;outline-offset:1px}
-  .form-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:.7rem 1rem}
-  .form-grid .wide{grid-column:1/-1}
-  .case-wrap{overflow:auto;max-height:480px;border:1px solid var(--rand);border-radius:6px}
-  .case-table{min-width:980px;margin:0;font-size:.8rem}
-  .case-table thead th{position:sticky;top:0;z-index:1}
-  .case-table tr.excluded{color:#6e7d8c;background:#fafbfc}
-  .case-table tr.selected{background:#eef6ff}
-  .case-table select{max-width:210px;border:1px solid #c5d0dc;border-radius:4px;padding:.3rem;font-size:.78rem}
-  .case-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;white-space:nowrap}
-  .case-original{color:#8a3d00}.wb-count{font-size:.8rem;color:#52697f}
-  .pdca-grid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:.8rem}
-  .pdca-phase{border:1px solid var(--rand);border-radius:8px;padding:.85rem;background:#fbfcfd}
-  .pdca-phase h4{margin:0 0 .7rem;color:var(--blau);font-size:.9rem}
-  .pdca-phase .field{margin-bottom:.55rem}
-  .validation{font-size:.8rem;border-radius:6px;padding:.55rem .7rem;margin:.7rem 0}
-  .validation.ok{background:#eaf5ec;color:#22612d;border:1px solid #c5dfca}
-  .validation.warn{background:#fff7e6;color:#7a4a00;border:1px solid #ffe0a3}
-  .impact-box{background:#edf4fb;border:1px solid #c8d9ea;border-radius:6px;padding:.65rem .75rem;font-size:.82rem;line-height:1.5}
-  .protocol-banner{display:flex;justify-content:space-between;gap:1rem;align-items:center;border-radius:8px;padding:.8rem 1rem;margin:.8rem 0}
-  .protocol-banner.pass{background:#eaf5ec;border:1px solid #c5dfca;color:#205d2a}
-  .protocol-banner.warn{background:#fff7e6;border:1px solid #ffe0a3;color:#7a4a00}
-  .protocol-banner.fail{background:#fce8e6;border:1px solid #efc2be;color:#8e190f}
-  .protocol-id{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.76rem;overflow-wrap:anywhere}
-  .check-pass{color:var(--gruen);font-weight:700}.check-warn{color:var(--orange);font-weight:700}.check-fail{color:var(--rot);font-weight:700}
-  .check-group th{background:#f2f4f6;text-align:left;font-size:.9rem;letter-spacing:.02em;padding-top:.6rem}
-  .save-state{font-size:.76rem;color:#52697f;min-height:1.1rem}
-  @media(max-width:760px){
-    .wb-stats{grid-template-columns:repeat(2,1fr)}
-    .wb-progress{grid-template-columns:repeat(3,1fr)}
-    .form-grid,.pdca-grid{grid-template-columns:1fr}
-  }
-  @media print{
-    #workbenchCard,#protocolCard{display:none!important}
-  }
-</style>
 </head>
-<body>
-<div id="standaloneNav" class="hint" style="display:none;padding:.3rem 1.5rem;background:#0d1f38;"><a href="../#chiqi" target="_top" style="color:#cfe0f5;font-size:.78rem;text-decoration:none">&larr; CH-IQI Kompass</a></div>
-<header>
-  <h1>CH-IQI Kompass: Unterjährige Indikator-Auswertung <small>(Pilot)</small></h1>
-  <p>SpiGes-Import → CH-IQI-Berechnung → Fallreview → PDCA · 3 Mortalitätsindikatoren und Anteil brusterhaltender Resektionen · Spezifikationen v5.5, Referenzjahr 2024 (Quelle: BAG)</p>
+<body class="k-body">
+<header id="standaloneNav" class="k-shell k-screen" data-k-standalone hidden>
+  <a class="k-brand" href="../index.html#chiqi" target="_top"><span data-k-mark></span>CH-IQI Kompass</a>
+  <div class="k-shell__end">
+    <span class="k-proto">Prototyp</span>
+    <a class="k-shell__link" href="mailto:curtis.voelkle@gmail.com?subject=CH-IQI%20Kompass">Feedback</a>
+  </div>
 </header>
-<main>
-  <div class="card" id="importCard">
-    <div id="drop">
-      <strong>SpiGes-Daten-File (XML) hier ablegen</strong> oder klicken zum Auswählen
-      <div class="hint">z.&nbsp;B. alle bereits codierten Fälle des laufenden Jahres · zum Ausprobieren: <a href="spiges_testdata_v15.xml" download>synthetisches Testfile</a></div>
+<div class="k-page k-screen">
+  <header class="k-strip">
+    <div class="k-strip__title">
+      <h1>Unterjährige Auswertung</h1>
+      <span class="k-meta">SpiGes-Import · CH-IQI v5.5 · Referenzjahr 2024 (BAG) · 3 Mortalitätsindikatoren und Anteil brusterhaltender Resektionen</span>
+    </div>
+    <div class="k-strip__actions">
+      <span class="k-status-line"><i data-k-icon="lock"></i>Lokal · keine Übertragung</span>
+      <button class="k-infotip" data-k-tip="tip-privacy" aria-label="Über die lokale Verarbeitung"></button>
+      <template id="tip-privacy-c"><p>Die Daten verlassen diesen Computer nicht. Import, Indikatorberechnung und QM-Workbench laufen vollständig lokal im Browser; es werden keine Daten an einen Server übermittelt. Die Seite funktioniert auch offline.</p></template>
+    </div>
+  </header>
+
+  <ol id="flowSteps" class="k-stepper k-no-print" aria-label="Arbeitsschritte">
+    <li class="k-step" data-step="import" data-state="current"><span class="k-step__num">1</span> Import</li>
+    <li class="k-step" data-step="indicators" data-state="upcoming"><span class="k-step__num">2</span> Indikatoren</li>
+    <li class="k-step" data-step="review" data-state="upcoming"><span class="k-step__num">3</span> Fallreview</li>
+    <li class="k-step" data-step="pdca" data-state="upcoming"><span class="k-step__num">4</span> PDCA</li>
+    <li class="k-step" data-step="evidence" data-state="upcoming"><span class="k-step__num">5</span> Nachweis</li>
+  </ol>
+
+  <section class="k-panel k-section k-no-print" id="importCard">
+    <div id="drop" class="k-drop" role="button" tabindex="0" aria-describedby="dropHint">
+      <i data-k-icon="upload"></i>
+      <span class="k-drop__title">SpiGes-Datei (XML) hier ablegen oder klicken</span>
+      <span class="k-hint" id="dropHint">z.&nbsp;B. alle bereits codierten Fälle des laufenden Jahres · zum Ausprobieren: <a href="spiges_testdata_v15.xml" download>synthetisches Testfile</a></span>
       <input type="file" id="fileInput" accept=".xml" hidden>
     </div>
-    <div class="privacy">🔒 <strong>Die Daten verlassen Ihren Computer nicht.</strong>
-      Import und Indikatorberechnung laufen vollständig lokal in Ihrem Browser.
-      Es werden keine Daten an einen Server übermittelt. Die Seite funktioniert auch offline.</div>
-    <div id="status"></div>
-  </div>
+    <div id="status" class="k-section" role="status" aria-live="polite" hidden></div>
+  </section>
 
-  <div class="card" id="resultCard" style="display:none">
-    <div class="print-only" id="printHead">
-      <h1 style="font-size:1.3rem;color:var(--blau);margin:0 0 .2rem">CH-IQI Kompass: Unterjährige Auswertung</h1>
-      <table style="margin:.4rem 0 1rem"><tbody id="printMeta"></tbody></table>
+  <section class="k-panel" id="resultCard" hidden>
+    <div class="k-print-only" id="printHead">
+      <h1 class="k-panel__title">CH-IQI Kompass: Unterjährige Auswertung</h1>
+      <table class="k-table k-table--kv"><tbody id="printMeta"></tbody></table>
     </div>
-    <button id="btnPdf" title="Druckoptimierten Bericht erzeugen: im Dialog «Als PDF speichern» wählen. Kopf-/Fusszeilen des Browsers einmalig deaktivieren; die Seitenzahl setzt der Bericht selbst.">&#128196; PDF-Bericht</button>
-    <button id="btnCockpit" type="button">Mit BAG-Verlauf vergleichen</button>
-    <h2>CH-IQI-Indikatoren <span class="badge" id="metaBadge"></span></h2>
-    <table>
-      <thead><tr>
-        <th>Indikator</th><th class="num">Nennerfälle (n)</th><th class="num">Zähler (O)</th>
-        <th class="num">Rate / Anteil</th><th class="num">Erwartete Rate / CH-Referenz</th><th class="num">SMR (nur Mortalität)</th>
-        <th class="num" title="Fälle ohne passende Referenzrate (Alter/Geschlecht). Sie zählen im Nenner, aber nicht im Erwartungswert E. Sollte 0 sein.">o. Ref.</th>
-        <th class="num" title="Ausgetretene Nennerfälle ohne Austrittsentscheid. Bei Werten über 0 werden Rate und SMR nicht interpretiert.">Outcome fehlt</th>
-      </tr></thead>
-      <tbody id="indTable"></tbody>
-    </table>
-    <div class="warnbox">
-      <strong>Hinweise zur Interpretation (unterjährige Daten):</strong>
-      Die Auswertung umfasst nur <em>ausgetretene und codierte</em> Fälle. Noch nicht
-      codierte Austritte fehlen (Kodierverzug) und können die Raten verzerren. Kleine kumulierte
-      Fallzahlen ergeben breite Zufallsstreuung; O/E-Werte sind Hinweise auf
-      <em>prüfenswerte</em> Auffälligkeiten, keine Qualitätsurteile.
-      Die erwartete Rate (Erwartungswert je Fall) basiert auf den nationalen BAG-Referenzraten
-      <span id="refJahrNote"></span>; der SMR (O/E) wird aus den absoluten Werten gebildet.
-      Herzinfarkt (A.1.1) mit differenziertem
-      Risikomodell gemäss v5.5 (logistische Regression mit Komorbiditäten),
-      Schlaganfall und Pneumonie mit indirekter Alters-/Geschlechts-Standardisierung.
-      Bei G5_03 bezeichnet O die Fälle mit brusterhaltender Resektion, n alle Resektionsfälle gemäss G.5.2.F.
-      Der CH-Anteil ist eine unadjustierte Referenz, kein Zielwert; höher oder tiefer bedeutet nicht besser oder schlechter.
-      Berechnungsgrundlagen: CH-IQI Spezifikationen v5.5 und Referenzdaten 2024,
-      Quelle BAG (Nutzung mit Quellenangabe freigegeben).
-      Die Spalte <em>o. Ref.</em> zeigt Fälle ohne passende Alters-/Geschlechts-Referenzrate;
-      sie zählen im Nenner, aber nicht im Erwartungswert E, und sollte 0 sein.
-    </div>
-    <p class="hint" id="importInfo"></p>
-    <p class="hint transfer-note">Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p>
-  </div>
-
-  <div class="card" id="protoCard" style="display:none">
-    <details>
-      <summary style="cursor:pointer;font-size:1.05rem;color:var(--blau);font-weight:600">Importprotokoll &amp; Plausibilisierung</summary>
-      <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem">
-        <div style="flex:1 1 260px"><h2>Protokoll</h2><table id="protoTable"></table></div>
-        <div style="flex:1 1 200px"><h2>Austritte nach Quartal</h2><table id="quartalTable"></table>
-          <p class="hint">Deutlich weniger Fälle im letzten Quartal? Dann ist die Codierung
-          dort vermutlich noch unvollständig (Kodierverzug).</p></div>
-        <div style="flex:1 1 200px"><h2>Häufigste Hauptdiagnosen</h2><table id="hdTable"></table></div>
+    <div class="k-panel__head">
+      <div class="k-panel__heading">
+        <h2 class="k-panel__title">CH-IQI-Indikatoren <span class="k-meta" id="metaBadge"></span></h2>
+        <span class="k-meta k-badges" id="resultMeta"></span>
       </div>
-      <div id="warnings"></div>
+      <div class="k-panel__actions">
+        <button id="btnPdf" type="button" class="k-btn"><i data-k-icon="file-text"></i>PDF-Bericht</button>
+        <button id="btnCockpit" type="button" class="k-btn k-btn--primary">Mit BAG-Verlauf vergleichen</button>
+        <button class="k-infotip" data-k-tip="tip-transfer" aria-label="Über den Vergleich im Cockpit"></button>
+        <template id="tip-transfer-c"><p>Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p></template>
+      </div>
+    </div>
+    <div class="k-table-wrap">
+      <table class="k-table">
+        <colgroup><col><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-signal"></colgroup>
+        <thead><tr>
+          <th>Indikator</th><th class="k-num">n</th><th class="k-num">O</th>
+          <th class="k-num">Rate</th><th class="k-num">Erwartung / CH-Ref.</th><th class="k-num">SMR</th>
+          <th class="k-num">o. Ref. <button class="k-infotip" data-k-tip="tip-oref" aria-label="Über o. Ref."></button><template id="tip-oref-c"><p>Fälle ohne passende Referenzrate (Alter/Geschlecht). Sie zählen im Nenner, aber nicht im Erwartungswert E. Sollte 0 sein.</p></template></th>
+          <th class="k-num">Outcome fehlt <button class="k-infotip" data-k-tip="tip-outcome" aria-label="Über Outcome fehlt"></button><template id="tip-outcome-c"><p>Ausgetretene Nennerfälle ohne Austrittsentscheid. Bei Werten über 0 werden Rate und SMR nicht interpretiert.</p></template></th>
+          <th>Signal</th>
+        </tr></thead>
+        <tbody id="indTable"></tbody>
+      </table>
+    </div>
+    <p class="k-meta k-table-foot" id="importInfo"></p>
+    <details class="k-disclosure k-section" data-k-persist="chiqi-method">
+      <summary><i data-k-icon="chevron-right" class="k-chevron"></i>Methodik und Interpretation</summary>
+      <div class="k-disclosure__body">
+        <p>Die Auswertung umfasst nur <em>ausgetretene und codierte</em> Fälle. Noch nicht codierte Austritte fehlen (Kodierverzug) und können die Raten verzerren. Kleine kumulierte Fallzahlen ergeben breite Zufallsstreuung.</p>
+        <p>Die erwartete Rate (Erwartungswert je Fall) basiert auf den nationalen BAG-Referenzraten <span id="refJahrNote"></span>; der SMR (O/E) wird aus den absoluten Werten gebildet. Herzinfarkt (A.1.1) mit differenziertem Risikomodell gemäss v5.5 (logistische Regression mit Komorbiditäten), Schlaganfall und Pneumonie mit indirekter Alters-/Geschlechts-Standardisierung.</p>
+        <p>Bei G5_03 bezeichnet O die Fälle mit brusterhaltender Resektion, n alle Resektionsfälle gemäss G.5.2.F. Der CH-Anteil ist eine unadjustierte Referenz, kein Zielwert; höher oder tiefer bedeutet nicht besser oder schlechter.</p>
+        <p>Berechnungsgrundlagen: CH-IQI Spezifikationen v5.5 und Referenzdaten 2024, Quelle BAG (Nutzung mit Quellenangabe freigegeben).</p>
+      </div>
     </details>
-  </div>
+  </section>
 
-  <div class="card" id="workbenchCard" style="display:none">
-    <div class="wb-head">
-      <div>
-        <h2>Lokale QM-Workbench</h2>
-        <div class="hint">Fallauswahl, strukturierter Prüfauftrag und Nachmessung für die vier berechneten Indikatoren.</div>
+  <section class="k-panel" id="protoCard" hidden>
+    <details class="k-disclosure k-disclosure--section">
+      <summary><i data-k-icon="chevron-right" class="k-chevron"></i>Importprotokoll &amp; Plausibilisierung <span class="k-meta" id="protoSummary"></span></summary>
+      <div class="k-disclosure__body">
+        <div class="k-form-grid k-form-grid--3">
+          <div><h3 class="k-subsection__title">Protokoll</h3><table class="k-table k-table--kv" id="protoTable"></table></div>
+          <div><h3 class="k-subsection__title">Austritte nach Quartal</h3><table class="k-table k-table--kv" id="quartalTable"></table>
+            <p class="k-hint">Deutlich weniger Fälle im letzten Quartal deuten auf Kodierverzug.</p></div>
+          <div><h3 class="k-subsection__title">Häufigste Hauptdiagnosen</h3><table class="k-table k-table--kv" id="hdTable"></table></div>
+        </div>
+        <div id="warnings"></div>
       </div>
-      <div class="wb-actions">
-        <button class="btn" id="btnProjectExport" type="button">QM-Projekt exportieren</button>
-        <button class="btn danger" id="btnClearProjects" type="button">Lokale Entwürfe löschen</button>
-        <button class="btn danger" id="btnDiscardCases" type="button">Falldaten verwerfen</button>
+    </details>
+  </section>
+
+  <section class="k-panel k-no-print" id="workbenchCard" hidden>
+    <div class="k-panel__head">
+      <div class="k-panel__heading">
+        <h2 class="k-panel__title">QM-Workbench
+          <button class="k-infotip" data-k-tip="tip-wb" aria-label="Über den lokalen Arbeitsbereich"></button></h2>
+        <template id="tip-wb-c"><p>Rohdaten und Original-Fall-IDs bleiben nur im Arbeitsspeicher dieses Tabs. Gespeichert werden ausschliesslich QM-Felder und lokal erzeugte Fallreferenzen.</p></template>
+        <span class="k-meta">Fallauswahl, Prüfauftrag und Nachmessung je Indikator</span>
+      </div>
+      <div class="k-panel__actions">
+        <button class="k-btn k-btn--sm" id="btnProjectExport" type="button"><i data-k-icon="download"></i>QM-Projekt exportieren</button>
+        <button class="k-btn k-btn--sm k-btn--ghost-danger" id="btnClearProjects" type="button"><i data-k-icon="trash"></i>Lokale Entwürfe löschen</button>
+        <button class="k-btn k-btn--sm k-btn--ghost-danger" id="btnDiscardCases" type="button"><i data-k-icon="x"></i>Falldaten verwerfen</button>
       </div>
     </div>
-    <div class="wb-privacy"><strong>Lokaler Arbeitsbereich:</strong> Rohdaten und Original-Fall-IDs bleiben nur im Arbeitsspeicher dieses Tabs. Gespeichert werden ausschliesslich QM-Felder und lokal erzeugte Fallreferenzen. Geben Sie keine Patientennamen in Freitextfelder ein.</div>
-    <div id="wbTabs" class="wb-tabs" role="tablist" aria-label="Indikator für die QM-Workbench wählen"></div>
+    <p class="k-hint">Keine Patientennamen in Freitextfelder eingeben.</p>
+    <div id="wbTabs" class="k-seg k-section" role="tablist" aria-label="Indikator für die QM-Workbench wählen"></div>
     <div id="wbIndicator"></div>
-    <div id="wbSaveState" class="save-state" aria-live="polite"></div>
-  </div>
+    <div id="wbSaveState" class="k-meta k-section" aria-live="polite"></div>
+  </section>
 
-  <div class="card" id="protocolCard" style="display:none">
-    <div class="wb-head">
-      <div>
-        <h2>Datenqualitäts- und Methodennachweis</h2>
-        <div class="hint">Automatisch aus Import, Fallspur, Berechnungsversionen und Plausibilitätsprüfungen erzeugt.</div>
+  <section class="k-panel k-no-print" id="protocolCard" hidden>
+    <div class="k-panel__head">
+      <div class="k-panel__heading">
+        <h2 class="k-panel__title">Datenqualitäts- und Methodennachweis</h2>
+        <span class="k-meta">Automatisch aus Import, Fallspur, Berechnungsversionen und Plausibilitätsprüfungen</span>
       </div>
-      <div class="wb-actions">
-        <button class="btn" id="btnProtocolExport" type="button">Nachweis als JSON</button>
-        <button class="btn primary" id="btnEvidencePdf" type="button">QM-Nachweis drucken</button>
+      <div class="k-panel__actions">
+        <button class="k-btn k-btn--sm" id="btnProtocolExport" type="button"><i data-k-icon="download"></i>Nachweis als JSON</button>
+        <button class="k-btn k-btn--sm k-btn--primary" id="btnEvidencePdf" type="button"><i data-k-icon="printer"></i>QM-Nachweis drucken</button>
       </div>
     </div>
     <div id="protocolContent"></div>
-  </div>
-</main>
-<div id="report"></div>
+  </section>
+
+  <footer class="k-footer">
+    <div class="k-footer__line">
+      <span>Eigene SpiGes-Daten · Referenz: BAG, CH-IQI Spezifikationen v5.5</span>
+      <span class="k-strong">Statistische Auffälligkeit ist ein Prüfhinweis, kein Qualitätsurteil.</span>
+    </div>
+  </footer>
+</div>
+<div id="report" class="k-light"></div>
 <script>
 (function () {
   var drop = document.getElementById('drop');
@@ -269,43 +160,80 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   var LAST = null;
   var WORKBENCH = null;
   var COCKPIT_TRANSFER_KEY = 'chiqiKompass.ownResults.v1';
+  // Darstellung über das gemeinsame UI-Kit (ui/kompass-ui.js, docs/DESIGN_LANGUAGE.md).
+  var UI = window.KompassUI, F = UI.fmt;
+  function show(id, on) { document.getElementById(id).hidden = !on; }
+  function setStatus(tone, text) { statusEl.hidden = false; statusEl.innerHTML = UI.tone(tone, text); }
 
-  drop.addEventListener('click', function () { input.click(); });
+  drop.addEventListener('click', function (e) { if (e.target.tagName !== 'A') input.click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
   input.addEventListener('change', function () { if (input.files[0]) handle(input.files[0]); });
   ['dragover','dragenter'].forEach(function (ev) {
-    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('hover'); });
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-hover'); });
   });
   ['dragleave','drop'].forEach(function (ev) {
-    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('hover'); });
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-hover'); });
   });
   drop.addEventListener('drop', function (e) {
     if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]);
   });
 
-  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-  function pct(x) { return x == null ? '–' : (100 * x).toFixed(1) + '%'; }
+  function esc(s) { return UI.esc(s); }
+  function pct(x) { return F.share(x); }
+  // Ablauf (§3.7): Schritte folgen dem Stand der Auswertung.
+  function updateFlow() {
+    var st = { import: 'current', indicators: 'upcoming', review: 'upcoming', pdca: 'upcoming', evidence: 'upcoming' };
+    if (LAST) { st.import = 'done'; st.indicators = 'done'; st.review = 'current'; }
+    if (WORKBENCH) {
+      var reviewed = false, planned = false;
+      WORKBENCH.results.forEach(function (r) {
+        var p = WORKBENCH.projects[r.id], pr = ChiqiQm.progress(p);
+        if (ChiqiQm.reviewSummary(p).completed > 0) reviewed = true;
+        if (pr.act || ['abgeschlossen', 'ohne_massnahme'].indexOf(p.status) !== -1) planned = true;
+      });
+      if (reviewed) { st.review = 'done'; st.pdca = 'current'; }
+      if (planned) st.pdca = 'done';
+      st.evidence = 'done';
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('#flowSteps [data-step]'), function (li) {
+      li.setAttribute('data-state', st[li.getAttribute('data-step')]);
+    });
+  }
+  // Signale der Workbench in die gemeinsame Signalsprache übersetzen (§2.4).
+  function wbBadge(assessment, proportion) {
+    if (assessment.code === 'blocked') return UI.badge({ tone: 'danger', label: 'nicht interpretierbar' });
+    if (assessment.code === 'small') return UI.badge({ signal: 'not-assessable', title: 'noch nicht belastbar: n < 10 oder E < 3' });
+    if (assessment.code === 'normal') return UI.badge({ signal: 'inconspicuous' });
+    if (proportion) return UI.badge({ signal: 'deviant' });
+    return UI.badge({ signal: assessment.code === 'high' ? 'high' : 'low' });
+  }
+  function rowSignal(r, a) {
+    if (a.z == null) return 'not-assessable';
+    if (Math.abs(a.z) <= 1.96) return 'inconspicuous';
+    if (r.typ === 'Anteil') return 'deviant';
+    return a.z > 0 ? 'high' : 'low';
+  }
 
   async function handle(file) {
-    statusEl.innerHTML = 'Verarbeite <strong>' + esc(file.name) + '</strong> …';
-    document.getElementById('resultCard').style.display = 'none';
-    document.getElementById('workbenchCard').style.display = 'none';
-    document.getElementById('protocolCard').style.display = 'none';
+    statusEl.hidden = false;
+    statusEl.innerHTML = '<span class="k-tone"><span class="k-spinner" aria-hidden="true"></span><span>Verarbeite <strong>' + esc(file.name) + '</strong> …</span></span>';
+    show('resultCard', false); show('protoCard', false); show('workbenchCard', false); show('protocolCard', false);
     try {
       var res = await SpiGesParser.parseSpiGes(file, { fileName: file.name });
       var results = ChiqiEngine.computeAll(res.cases, CHIQI_DEMO.indicators);
       var austritte = res.cases.filter(function (c) { return !c.nochHospitalisiert; }).length;
 
+      var flag = function (v) { return v ? '<span class="k-tone" data-tone="caution">' + F.n(v) + '</span>' : '0'; };
       document.getElementById('indTable').innerHTML = results.map(function (r) {
-        var smr = r.smr == null ? '<span class="smr-na">–</span>'
-          : '<span class="' + (r.smr > 1.3 ? 'smr-hoch' : '') + '">' + r.smr.toFixed(2) + '</span>';
-        return '<tr><td><strong>' + esc(r.id) + '</strong><br><span class="hint">' + esc(r.label) + '</span></td>' +
-          '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
-          '<td class="num">' + pct(r.rate) + '</td>' +
-          '<td class="num"' + (r.E == null ? '' : ' title="' + (r.typ === 'Anteil' ? 'Referenzanzahl n × CH-Anteil' : 'Erwartete Todesfälle') + ': ' + r.E.toFixed(2) + '"') + '>' +
+        return '<tr><td class="k-cell-title"><strong>' + esc(r.id) + '</strong><div class="k-meta">' + esc(r.label) + '</div></td>' +
+          '<td class="k-num">' + F.n(r.n) + '</td><td class="k-num">' + F.n(r.O) + '</td>' +
+          '<td class="k-num">' + pct(r.rate) + '</td>' +
+          '<td class="k-num"' + (r.E == null ? '' : ' title="' + (r.typ === 'Anteil' ? 'Referenzanzahl n × CH-Anteil' : 'Erwartete Todesfälle') + ': ' + F.dec(r.E, 2) + '"') + '>' +
             (r.E == null || !r.n ? '–' : pct(r.E / r.n)) + '</td>' +
-          '<td class="num">' + smr + '</td>' +
-          '<td class="num">' + (r.refMisses ? '<span class="smr-hoch">' + r.refMisses + '</span>' : '0') + '</td>' +
-          '<td class="num">' + (r.outcomeMisses ? '<span class="smr-hoch">' + r.outcomeMisses + '</span>' : '0') + '</td></tr>';
+          '<td class="k-num">' + F.oe(r.smr) + '</td>' +
+          '<td class="k-num">' + flag(r.refMisses) + '</td>' +
+          '<td class="k-num">' + flag(r.outcomeMisses) + '</td>' +
+          '<td>' + UI.badge({ signal: rowSignal(r, assessRow(r)) }) + '</td></tr>';
       }).join('');
 
       document.getElementById('metaBadge').textContent =
@@ -317,16 +245,16 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
         (res.meta.counts.faelle - austritte) + ' noch hospitalisiert) · ' +
         res.meta.counts.diagnosen + ' Diagnosen · ' + res.meta.counts.behandlungen +
         ' Behandlungen · SpiGes ' + (res.meta.formatVersion || '?') +
-        ' · Verarbeitung ' + res.meta.importprotokoll.dauerMs + ' ms' +
-        (res.meta.warnings.length ? ' · ⚠ ' + res.meta.warnings.length + ' Warnung(en)' : '');
-      statusEl.innerHTML = '<span class="ok">✔ Indikatoren berechnet.</span> Lokale QM-Workbench und Methodennachweis werden vorbereitet …';
-      document.getElementById('resultCard').style.display = '';
+        ' · Verarbeitung ' + F.n(res.meta.importprotokoll.dauerMs) + ' ms' +
+        (res.meta.warnings.length ? ' · ' + res.meta.warnings.length + (res.meta.warnings.length === 1 ? ' Warnung' : ' Warnungen') : '');
+      setStatus('ok', 'Indikatoren berechnet. QM-Workbench und Methodennachweis werden vorbereitet …');
+      show('resultCard', true);
 
       // Importprotokoll & Plausibilisierung
       var sum = SpiGesParser.summarizeCases(res.cases);
       function rows(id, data) {
         document.getElementById(id).innerHTML = data.map(function (r) {
-          return '<tr><th>' + esc(r[0]) + '</th><td class="num">' + esc(r[1]) + '</td></tr>';
+          return '<tr><th>' + esc(r[0]) + '</th><td class="k-num">' + esc(r[1]) + '</td></tr>';
         }).join('');
       }
       rows('protoTable', [
@@ -340,8 +268,10 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       rows('quartalTable', Object.keys(sum.nachQuartal).sort().map(function (q) { return [q, sum.nachQuartal[q]]; }));
       rows('hdTable', sum.topHauptdiagnosen.slice(0, 8).map(function (h) { return [h.icd3, h.n]; }));
       document.getElementById('warnings').innerHTML = res.meta.warnings.length
-        ? '<p class="warn" style="color:var(--orange);font-size:.85rem">⚠ ' + res.meta.warnings.map(esc).join('<br>⚠ ') + '</p>' : '';
-      document.getElementById('protoCard').style.display = '';
+        ? '<div class="k-note k-section" data-tone="caution">' + UI.icon('alert') + '<div>' + res.meta.warnings.map(esc).join('<br>') + '</div></div>' : '';
+      document.getElementById('protoSummary').textContent = res.meta.warnings.length
+        ? '· ' + res.meta.warnings.length + (res.meta.warnings.length === 1 ? ' Warnung' : ' Warnungen') : '';
+      show('protoCard', true);
 
       // Druckkopf
       var quartale = Object.keys(sum.nachQuartal).sort();
@@ -351,17 +281,30 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
         ['Unternehmen / Standorte', (res.meta.entId || '–') + ' / ' + (res.meta.standorte.join(', ') || '–')],
         ['Auswertungszeitraum (Austritte)', zeitraum],
         ['Fälle', res.meta.counts.faelle + ' (' + austritte + ' Austritte, ' + (res.meta.counts.faelle - austritte) + ' noch hospitalisiert)'],
-        ['Bericht erstellt', new Date().toLocaleString('de-CH')],
+        ['Bericht erstellt', F.date(new Date()) + ' ' + F.time()],
         ['Methodik', 'CH-IQI Spezifikationen v' + CHIQI_DEMO.meta.chiqiVersion + ' (BAG) · Engine v' + ChiqiEngine.ENGINE_VERSION + ' · Verarbeitung vollständig lokal, keine Datenübermittlung']
       ].map(function (r) {
-        return '<tr><th style="white-space:nowrap">' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
+        return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
       }).join('');
       LAST = { res: res, results: results, sum: sum, austritte: austritte, zeitraum: zeitraum };
+      var verzug = codingLag(sum);
+      document.getElementById('resultMeta').innerHTML = '<span>ausgetretene, codierte Fälle · ' + esc(zeitraum) + '</span>' +
+        UI.badge({ tone: 'caution', label: 'vorläufig' }) +
+        (verzug ? UI.badge({ tone: 'caution', icon: 'alert', label: 'Kodierverzug möglich' }) : '');
       await prepareWorkbench(file, LAST);
-      statusEl.innerHTML = '<span class="ok">✔ Auswertung, Fallspur und Methodennachweis abgeschlossen</span>';
+      setStatus('ok', 'Auswertung, Fallspur und Methodennachweis abgeschlossen');
+      updateFlow();
     } catch (e) {
-      statusEl.innerHTML = '<span class="err">✘ Fehler: ' + esc(e.message) + '</span>';
+      setStatus('danger', 'Fehler: ' + e.message);
     }
+  }
+  // Letztes Quartal < 60% des Medians der Vorquartale: vermutlich Kodierverzug.
+  function codingLag(sum) {
+    var qs = Object.keys(sum.nachQuartal).sort();
+    if (qs.length < 2) return false;
+    var prev = qs.slice(0, -1).map(function (q) { return sum.nachQuartal[q]; }).sort(function (a, b) { return a - b; });
+    var med = prev[Math.floor(prev.length / 2)];
+    return med > 0 && sum.nachQuartal[qs[qs.length - 1]] < 0.6 * med;
   }
   function assessRow(r) {
     if (r.outcomeMisses || r.refMisses || r.E == null || r.n < 10 || r.E < 3 || (r.typ === 'Anteil' && r.n - r.E < 3)) return { z: null, label: 'nicht beurteilbar' };
@@ -373,14 +316,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   function attr(s) {
     return esc(s == null ? '' : s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-  function num(x, digits) {
-    return x == null || !isFinite(x) ? '–' : Number(x).toFixed(digits == null ? 2 : digits);
-  }
-  function dateDe(value) {
-    if (!value) return '–';
-    var d = new Date(value);
-    return isNaN(d.getTime()) ? String(value) : d.toLocaleDateString('de-CH');
-  }
+  function num(x, digits) { return F.dec(x, digits == null ? 2 : digits); }
+  function dateDe(value) { return F.date(value); }
   function statusLabel(value) {
     return {
       neu: 'Neu',
@@ -462,8 +399,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     };
     renderWorkbench();
     renderProtocol();
-    document.getElementById('workbenchCard').style.display = '';
-    document.getElementById('protocolCard').style.display = '';
+    show('workbenchCard', true);
+    show('protocolCard', true);
   }
 
   function renderWorkbench() {
@@ -471,12 +408,11 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     document.getElementById('wbTabs').innerHTML = WORKBENCH.results.map(function (r) {
       var active = r.id === WORKBENCH.activeId;
       var assessment = ChiqiQm.assessResult(r);
-      return '<button type="button" role="tab" aria-selected="' + active + '" class="wb-tab' +
-        (active ? ' active' : '') + '" data-indicator="' + attr(r.id) + '">' +
-        esc(r.id + ' ' + (ChiqiQm.INDICATOR_META[r.id] || {}).shortLabel) +
-        ' <span aria-hidden="true">·</span> ' + esc(assessment.label) + '</button>';
+      return '<button type="button" role="tab" aria-selected="' + active + '" class="k-seg__tab" data-indicator="' + attr(r.id) + '">' +
+        esc(r.id + ' ' + (ChiqiQm.INDICATOR_META[r.id] || {}).shortLabel) + ' ' + wbBadge(assessment, r.typ === 'Anteil') + '</button>';
     }).join('');
     renderIndicatorWorkspace();
+    updateFlow();
   }
 
   function filteredCaseRows(rows, project) {
@@ -488,6 +424,26 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       return project.reviews[r.localRef] && project.reviews[r.localRef].selected;
     });
     return rows.filter(function (r) { return r.denominator; });
+  }
+
+  // Formularfeld (§3.6): Label umschliesst das Steuerelement, optional mit Hint.
+  function fld(label, control, opts) {
+    var o = opts || {};
+    return '<label class="k-field' + (o.cls ? ' ' + o.cls : '') + '"><span class="k-field__label">' + esc(label) + '</span>' + control +
+      (o.hint ? '<span class="k-hint">' + esc(o.hint) + '</span>' : '') + '</label>';
+  }
+  function inputField(path, value, extra) {
+    return '<input class="k-input" data-path="' + path + '" value="' + attr(value || '') + '"' + (extra || '') + '>';
+  }
+  function textarea(path, value, placeholder) {
+    return '<textarea class="k-textarea" data-path="' + path + '" placeholder="' + attr(placeholder) + '">' + esc(value || '') + '</textarea>';
+  }
+  function select(path, options, current, id) {
+    return '<select class="k-select"' + (id ? ' id="' + id + '"' : '') + (path ? ' data-path="' + path + '"' : '') + '>' +
+      options.map(function (o) {
+        var v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o;
+        return '<option value="' + attr(v) + '"' + (current === v ? ' selected' : '') + '>' + esc(l) + '</option>';
+      }).join('') + '</select>';
   }
 
   function renderIndicatorWorkspace() {
@@ -502,141 +458,137 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     var errors = ChiqiQm.validateProject(project);
     var follow = ChiqiQm.followUp(project);
     var maxRows = 200, visible = shown.slice(0, maxRows);
-    var workflowOptions = ChiqiQm.WORKFLOW_STATUSES.map(function (s) {
-      return '<option value="' + s + '"' + (project.status === s ? ' selected' : '') + '>' + statusLabel(s) + '</option>';
-    }).join('');
-    var phaseHtml = Object.keys(progress).map(function (key) {
-      return '<div class="wb-step' + (progress[key] ? ' done' : '') + '">' + esc(phaseLabel(key)) + '</div>';
+    var phases = Object.keys(progress);
+    var firstOpen = phases.filter(function (k) { return !progress[k]; })[0];
+    var phaseHtml = phases.map(function (key, i) {
+      return '<li class="k-step" data-state="' + (progress[key] ? 'done' : (key === firstOpen ? 'current' : 'upcoming')) + '">' +
+        '<span class="k-step__num">' + (i + 1) + '</span> ' + esc(phaseLabel(key)) + '</li>';
     }).join('');
     var caseHtml = visible.map(function (row) {
       var stored = project.reviews[row.localRef] || {};
       var selected = !!stored.selected;
       var caseLabel = WORKBENCH.showOriginal
-        ? '<span class="case-original">' + esc(row.caseId || 'ohne ID') + '</span>'
-        : esc(row.localRef);
+        ? '<span class="k-mono k-strong">' + esc(row.caseId || 'ohne ID') + '</span>'
+        : '<span class="k-mono">' + esc(row.localRef) + '</span>';
       var eTitle = row.expectedMissing ? 'Erwartungswert fehlt' : '';
-      return '<tr class="' + (!row.denominator ? 'excluded ' : '') + (selected ? 'selected' : '') + '">' +
+      return '<tr class="' + (!row.denominator ? 'k-row-muted' : '') + '" aria-selected="' + selected + '">' +
         '<td><input type="checkbox" data-case-select="' + attr(row.localRef) + '"' +
           (selected ? ' checked' : '') + (!row.denominator ? ' disabled' : '') +
           ' aria-label="Fall ' + attr(row.localRef) + ' für Review auswählen"></td>' +
-        '<td class="case-id">' + caseLabel + '<br><span class="hint">' + esc(row.burnr || 'ohne BUR') + '</span></td>' +
-        '<td>' + esc(dateDe(row.dischargeDate)) + '<br><span class="hint">' + esc(row.quarter || '') + '</span></td>' +
+        '<td>' + caseLabel + '<div class="k-meta">' + esc(row.burnr || 'ohne BUR') + '</div></td>' +
+        '<td>' + esc(dateDe(row.dischargeDate)) + '<div class="k-meta">' + esc(row.quarter || '') + '</div></td>' +
         '<td>' + esc(row.mainDiagnosis || '–') + '</td>' +
-        '<td class="num">' + (row.age == null ? '–' : row.age) + ' / ' + esc(row.sex || '–') + '</td>' +
+        '<td class="k-num">' + (row.age == null ? '–' : row.age) + ' / ' + esc(row.sex || '–') + '</td>' +
         '<td>' + (row.numerator ? '<strong>' + (proportion ? 'brusterhaltend' : 'verstorben') + '</strong>' : (row.denominator ? (proportion ? 'nicht brusterhaltend' : 'nicht verstorben') : '–')) + '</td>' +
-        '<td class="num" title="' + attr(eTitle) + '">' + num(row.expected, 4) + '</td>' +
+        '<td class="k-num" title="' + attr(eTitle) + '">' + num(row.expected, 4) + '</td>' +
         '<td>' + esc(row.reasonLabel) + '</td>' +
-        '<td><select data-case-class="' + attr(row.localRef) + '"' + (!selected ? ' disabled' : '') +
+        '<td><select class="k-select" data-case-class="' + attr(row.localRef) + '"' + (!selected ? ' disabled' : '') +
           ' aria-label="Reviewklassifikation für ' + attr(row.localRef) + '">' +
           classOptions(stored.classification || '') + '</select></td></tr>';
     }).join('');
-    if (!caseHtml) caseHtml = '<tr><td colspan="9" class="hint">Für diesen Filter sind keine Fälle vorhanden.</td></tr>';
+    if (!caseHtml) caseHtml = '<tr><td colspan="9" class="k-empty">Für diesen Filter sind keine Fälle vorhanden.</td></tr>';
 
-    var impactHtml = '<strong>Noch keine Nachmessung.</strong> Erfassen Sie unter Check ' + (proportion ? 'Resektionsfälle n und brusterhaltende Fälle O' : 'n, O und E') + ' sowie den Messzeitpunkt.';
+    var impactTone = 'neutral';
+    var impactHtml = '<div><strong>Noch keine Nachmessung.</strong> Unter Check ' + (proportion ? 'Resektionsfälle n und brusterhaltende Fälle O' : 'n, O und E') + ' sowie den Messzeitpunkt erfassen.</div>';
     if (follow.validCounts && follow.n > 0 && follow.E != null) {
       var power = follow.n >= 10 && follow.E >= 3;
-      impactHtml = '<strong>Nachmessung:</strong> ' + (proportion ? 'Anteil ' : 'Rate ') + pct(follow.rate) + (proportion ? '' : ', SMR ' + num(follow.smr, 2)) +
+      impactTone = project.check.methodComparable === false ? 'caution' : 'neutral';
+      impactHtml = '<div><strong>Nachmessung:</strong> ' + (proportion ? 'Anteil ' : 'Rate ') + pct(follow.rate) + (proportion ? '' : ', SMR ' + num(follow.smr, 2)) +
         (project.baseline.smr == null || follow.smr == null ? '' :
-          ', Veränderung ' + (follow.smr - project.baseline.smr > 0 ? '+' : '') + num(follow.smr - project.baseline.smr, 2)) +
+          ', Veränderung ' + F.delta(follow.smr - project.baseline.smr, 2)) +
         '. ' + (project.check.methodComparable === false
           ? '<strong>Methodik nicht vergleichbar:</strong> keine Wirkungsinterpretation.'
           : power
             ? 'Deskriptiver Vorher-Nachher-Vergleich, kausale Wirkung nicht belegt.'
-            : 'Fallzahl oder Erwartungswert noch zu klein für einen statistischen Wirkungsnachweis.');
+            : 'Fallzahl oder Erwartungswert noch zu klein für einen statistischen Wirkungsnachweis.') + '</div>';
     }
+    var caseFilters = [['included', 'Nennerfälle'], ['death', proportion ? 'Brusterhaltende Fälle im Nenner' : 'Todesfälle im Nenner'],
+      ['excluded', 'Themennahe Ausschlüsse'], ['selected', 'Für Review ausgewählt'], ['all', 'Alle themennahen Fälle']];
+    var opt = function (path, list) { return select(path, list, (path.split('.').reduce(function (o, k) { return o && o[k]; }, project)) || ''); };
 
     document.getElementById('wbIndicator').innerHTML =
-      '<div class="wb-head"><div><h3 style="margin:.1rem 0">' + esc(id + ': ' + result.label) + '</h3>' +
-      '<span class="signal ' + (proportion && ['high','low','normal'].indexOf(assessment.code) !== -1 ? 'process' : assessment.code) + '">' + esc(assessment.label) + '</span></div>' +
-      '<div class="field" style="max-width:230px"><label for="wbStatus">Status des Prüfauftrags</label>' +
-      '<select id="wbStatus" data-path="status">' + workflowOptions + '</select></div></div>' +
-      '<div class="wb-stats">' +
-      '<div class="wb-stat"><b>' + result.n + '</b><span>Fälle im Nenner</span></div>' +
-      '<div class="wb-stat"><b>' + result.O + '</b><span>' + (proportion ? 'Brusterhaltende Fälle O' : 'Beobachtete Ereignisse O') + '</span></div>' +
-      '<div class="wb-stat"><b>' + (proportion ? pct(result.referenceRate) : num(result.E, 2)) + '</b><span>' + (proportion ? 'CH-Referenz (unadjustiert)' : 'Erwartete Ereignisse E') + '</span></div>' +
-      '<div class="wb-stat"><b>' + (proportion ? pct(result.rate) : num(result.smr, 2)) + '</b><span>' + (proportion ? 'Eigener Anteil (richtungsneutral)' : 'SMR O/E') + '</span></div>' +
-      '<div class="wb-stat"><b>' + review.completed + '/' + review.selected + '</b><span>Reviews vollständig</span></div></div>' +
-      '<div class="wb-progress" aria-label="Fortschritt im Qualitätszyklus">' + phaseHtml + '</div>' +
+      '<div class="k-panel__head"><div class="k-panel__heading"><h3 class="k-panel__title">' + esc(id + ': ' + result.label) + ' ' +
+      wbBadge(assessment, proportion) + '</h3>' +
+      '<span class="k-meta">' + esc(assessment.label) + (proportion ? ' · richtungsneutral, nicht risikoadjustiert' : '') + '</span></div>' +
+      '<div class="k-panel__actions">' + fld('Status des Prüfauftrags', select('status', ChiqiQm.WORKFLOW_STATUSES.map(function (s) { return [s, statusLabel(s)]; }), project.status, 'wbStatus'), { cls: 'k-w-sm' }) + '</div></div>' +
+      '<div class="k-readouts k-readouts--plain">' +
+      UI.readout({ label: 'Fälle im Nenner n', value: F.n(result.n) }) +
+      UI.readout({ label: proportion ? 'Brusterhaltende Fälle O' : 'Beobachtete Ereignisse O', value: F.n(result.O) }) +
+      UI.readout({ label: proportion ? 'CH-Referenz (unadjustiert)' : 'Erwartete Ereignisse E', value: proportion ? pct(result.referenceRate) : num(result.E, 2) }) +
+      UI.readout({ label: proportion ? 'Eigener Anteil' : 'SMR O/E', value: proportion ? pct(result.rate) : num(result.smr, 2) }) +
+      UI.readout({ label: 'Reviews vollständig', value: review.completed + '/' + review.selected }) + '</div>' +
+      '<ol class="k-stepper k-section" aria-label="Fortschritt im Qualitätszyklus">' + phaseHtml + '</ol>' +
 
-      '<section class="wb-section"><h3>1. Fallauswahl und strukturiertes Review</h3>' +
-      '<div class="wb-toolbar"><div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:end">' +
-      '<div class="field" style="max-width:220px"><label for="caseFilter">Fälle anzeigen</label><select id="caseFilter">' +
-      '<option value="included"' + (WORKBENCH.caseFilter === 'included' ? ' selected' : '') + '>Nennerfälle</option>' +
-      '<option value="death"' + (WORKBENCH.caseFilter === 'death' ? ' selected' : '') + '>' + (proportion ? 'Brusterhaltende Fälle im Nenner' : 'Todesfälle im Nenner') + '</option>' +
-      '<option value="excluded"' + (WORKBENCH.caseFilter === 'excluded' ? ' selected' : '') + '>Themennahe Ausschlüsse</option>' +
-      '<option value="selected"' + (WORKBENCH.caseFilter === 'selected' ? ' selected' : '') + '>Für Review ausgewählt</option>' +
-      '<option value="all"' + (WORKBENCH.caseFilter === 'all' ? ' selected' : '') + '>Alle themennahen Fälle</option></select></div>' +
-      '<label style="font-size:.8rem;padding-bottom:.45rem"><input type="checkbox" id="showOriginal"' +
-      (WORKBENCH.showOriginal ? ' checked' : '') + '> Original-Fall-ID nur in diesem Tab anzeigen</label></div>' +
-      '<div class="form-grid" style="min-width:360px;max-width:520px;flex:1">' +
-      '<div class="field"><label>Reviewer:in</label><input data-path="reviewer" value="' + attr(project.reviewer || '') + '" placeholder="Name oder Funktion"></div>' +
-      '<div class="field"><label>Review-Datum</label><input type="date" data-path="reviewDate" value="' + attr(project.reviewDate || '') + '"></div></div></div>' +
-      '<div class="case-wrap"><table class="case-table"><thead><tr><th>Review</th><th>Fallreferenz</th><th>Austritt</th><th>HD</th>' +
-      '<th class="num">Alter / Sex</th><th>' + (proportion ? 'Resektionsart' : 'Outcome') + '</th><th class="num">' + (proportion ? 'CH-Anteil' : 'pᵢ') + '</th><th>Einordnung</th><th>Klassifikation</th></tr></thead><tbody>' +
+      '<section class="k-subsection"><h4 class="k-subsection__title">1. Fallauswahl und strukturiertes Review</h4>' +
+      '<div class="k-panel__toolbar">' +
+      fld('Fälle anzeigen', select(null, caseFilters, WORKBENCH.caseFilter, 'caseFilter'), { cls: 'k-w-md' }) +
+      fld('Reviewer:in', inputField('reviewer', project.reviewer, ' placeholder="Name oder Funktion"'), { cls: 'k-w-sm' }) +
+      fld('Review-Datum', inputField('reviewDate', project.reviewDate, ' type="date"'), { cls: 'k-w-xs' }) +
+      '<label class="k-check"><input type="checkbox" id="showOriginal"' + (WORKBENCH.showOriginal ? ' checked' : '') + '> Original-Fall-ID für KIS anzeigen</label>' +
+      '</div>' +
+      '<div class="k-table-wrap k-table-wrap--tall"><table class="k-table k-table--compact">' +
+      '<colgroup><col class="k-w-check"><col class="k-w-ref"><col class="k-w-date"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-n"><col><col class="k-w-class"></colgroup>' +
+      '<thead><tr><th>Review</th><th>Fallreferenz</th><th>Austritt</th><th>HD</th>' +
+      '<th class="k-num">Alter / Sex</th><th>' + (proportion ? 'Resektionsart' : 'Outcome') + '</th><th class="k-num">' + (proportion ? 'CH-Anteil' : 'pᵢ') + '</th><th>Einordnung</th><th>Klassifikation</th></tr></thead><tbody>' +
       caseHtml + '</tbody></table></div>' +
-      '<p class="wb-count">Gezeigt: ' + visible.length + ' von ' + shown.length +
-      (shown.length > maxRows ? '. Die Ansicht ist aus Leistungsgründen auf ' + maxRows + ' Zeilen begrenzt.' : '') +
-      '. Die lokale Fallreferenz ist eine gerätegebundene Maskierung und keine Anonymisierung.</p></section>' +
+      '<p class="k-meta k-table-foot">' + visible.length + ' von ' + shown.length + ' Fällen' +
+      (shown.length > maxRows ? ' · Ansicht auf ' + maxRows + ' Zeilen begrenzt' : '') +
+      ' · Die lokale Fallreferenz ist eine gerätegebundene Maskierung, keine Anonymisierung.</p></section>' +
 
-      '<section class="wb-section"><h3>2. Prüfauftrag und PDCA</h3>' +
-      '<div class="form-grid" style="margin-bottom:.8rem"><div class="field"><label>Verantwortliche Person</label>' +
-      '<input data-path="owner" value="' + attr(project.owner) + '" placeholder="Name oder Funktion"></div>' +
-      '<div class="field"><label>Termin</label><input type="date" data-path="dueDate" value="' + attr(project.dueDate) + '"></div></div>' +
-      '<div class="pdca-grid">' +
-      '<div class="pdca-phase"><h4>Plan: Ursache und Ziel</h4>' +
-      '<div class="field"><label>Prüffrage</label><textarea data-path="plan.signalQuestion" placeholder="Welche konkrete Frage soll das Review beantworten?">' + esc(project.plan.signalQuestion) + '</textarea></div>' +
-      '<div class="field"><label>Arbeitshypothese</label><textarea data-path="plan.hypothesis" placeholder="Zum Beispiel Kodierung, Case-Mix oder Prozessschritt">' + esc(project.plan.hypothesis) + '</textarea></div>' +
-      '<div class="field"><label>Messbares Ziel</label><textarea data-path="plan.goal" placeholder="Was soll sich bis wann verändern?">' + esc(project.plan.goal) + '</textarea></div>' +
-      '<div class="form-grid"><div class="field"><label>Messgrösse</label><select data-path="plan.targetMetric">' +
-      (proportion ? ['Rate', 'Prozesskennzahl'] : ['SMR', 'Rate', 'O−E', 'Prozesskennzahl']).map(function (m) { return '<option' + (project.plan.targetMetric === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('') +
-      '</select></div><div class="field"><label>Zielwert</label><input data-path="plan.targetValue" value="' + attr(project.plan.targetValue) + '" placeholder="' + (proportion ? 'Fachlich begründetes Ziel, kein pauschales höher/besser' : 'z. B. SMR < 1,0') + '"></div></div>' +
-      '<div class="field"><label>Geplante Massnahme</label><textarea data-path="plan.measure" placeholder="Konkrete Veränderung, Verantwortlichkeit und Umfang">' + esc(project.plan.measure) + '</textarea></div></div>' +
+      '<section class="k-subsection"><h4 class="k-subsection__title">2. Prüfauftrag und PDCA</h4>' +
+      '<div class="k-form-grid">' +
+      fld('Verantwortliche Person', inputField('owner', project.owner, ' placeholder="Name oder Funktion"')) +
+      fld('Termin', inputField('dueDate', project.dueDate, ' type="date"')) + '</div>' +
+      '<div class="k-form-grid k-section">' +
+      '<div class="k-stack"><h5 class="k-panel__title">Plan: Ursache und Ziel</h5>' +
+      fld('Prüffrage', textarea('plan.signalQuestion', project.plan.signalQuestion, 'Welche konkrete Frage soll das Review beantworten?')) +
+      fld('Arbeitshypothese', textarea('plan.hypothesis', project.plan.hypothesis, 'Zum Beispiel Kodierung, Case-Mix oder Prozessschritt')) +
+      fld('Messbares Ziel', textarea('plan.goal', project.plan.goal, 'Was soll sich bis wann verändern?')) +
+      '<div class="k-form-grid">' +
+      fld('Messgrösse', opt('plan.targetMetric', proportion ? ['Rate', 'Prozesskennzahl'] : ['SMR', 'Rate', 'O−E', 'Prozesskennzahl'])) +
+      fld('Zielwert', inputField('plan.targetValue', project.plan.targetValue, ' placeholder="' + (proportion ? 'Fachlich begründet' : 'z. B. SMR < 1.0') + '"'),
+        proportion ? { hint: 'Kein pauschales höher/besser.' } : {}) + '</div>' +
+      fld('Geplante Massnahme', textarea('plan.measure', project.plan.measure, 'Konkrete Veränderung, Verantwortlichkeit und Umfang')) + '</div>' +
 
-      '<div class="pdca-phase"><h4>Do: Umsetzung</h4>' +
-      '<div class="field"><label>Umsetzungsstatus</label><select data-path="do.status">' +
-      '<option value="nicht_begonnen"' + (project.do.status === 'nicht_begonnen' ? ' selected' : '') + '>Nicht begonnen</option>' +
-      '<option value="laufend"' + (project.do.status === 'laufend' ? ' selected' : '') + '>Laufend</option>' +
-      '<option value="umgesetzt"' + (project.do.status === 'umgesetzt' ? ' selected' : '') + '>Umgesetzt</option></select></div>' +
-      '<div class="field"><label>Umgesetzt am</label><input type="date" data-path="do.implementedAt" value="' + attr(project.do.implementedAt) + '"></div>' +
-      '<div class="field"><label>Umsetzungsnachweis</label><textarea data-path="do.implementationNote" placeholder="Beschluss, Schulung, Prozessänderung oder Auditnachweis">' + esc(project.do.implementationNote) + '</textarea></div></div>' +
+      '<div class="k-stack"><h5 class="k-panel__title">Do: Umsetzung</h5>' +
+      fld('Umsetzungsstatus', opt('do.status', [['nicht_begonnen', 'Nicht begonnen'], ['laufend', 'Laufend'], ['umgesetzt', 'Umgesetzt']])) +
+      fld('Umgesetzt am', inputField('do.implementedAt', project.do.implementedAt, ' type="date"')) +
+      fld('Umsetzungsnachweis', textarea('do.implementationNote', project.do.implementationNote, 'Beschluss, Schulung, Prozessänderung oder Auditnachweis')) + '</div>' +
 
-      '<div class="pdca-phase"><h4>Check: Nachmessung</h4>' +
-      '<p class="hint">Ausgangswert: n=' + result.n + ', O=' + result.O + (proportion ? ', Anteil=' + pct(result.rate) + '. Richtungsneutral; keine Risikoadjustierung.' : ', E=' + num(result.E, 3) + ', SMR=' + num(result.smr, 2)) + '</p>' +
-      '<div class="form-grid"><div class="field"><label>Messdatum</label><input type="date" data-path="check.measuredAt" value="' + attr(project.check.measuredAt) + '"></div>' +
-      '<div class="field"><label>n</label><input type="number" min="0" step="1" data-path="check.n" value="' + attr(project.check.n) + '"></div>' +
-      '<div class="field"><label>O</label><input type="number" min="0" step="1" data-path="check.O" value="' + attr(project.check.O) + '"></div>' +
-      (proportion ? '<p class="hint">E wird als n × CH-Referenzanteil berechnet; kein individueller Erwartungswert.</p>' : '<div class="field"><label>E</label><input type="number" min="0" step="0.001" data-path="check.E" value="' + attr(project.check.E) + '"></div>') + '</div>' +
-      '<label style="font-size:.8rem;display:block;margin:.5rem 0"><input type="checkbox" data-path="check.methodComparable"' +
+      '<div class="k-stack"><h5 class="k-panel__title">Check: Nachmessung</h5>' +
+      '<p class="k-hint">Ausgangswert: n ' + F.n(result.n) + ', O ' + F.n(result.O) + (proportion ? ', Anteil ' + pct(result.rate) + '. Richtungsneutral; keine Risikoadjustierung.' : ', E ' + num(result.E, 3) + ', SMR ' + num(result.smr, 2)) + '</p>' +
+      '<div class="k-form-grid k-form-grid--4">' +
+      fld('Messdatum', inputField('check.measuredAt', project.check.measuredAt, ' type="date"')) +
+      fld('n', inputField('check.n', project.check.n, ' type="number" min="0" step="1"')) +
+      fld('O', inputField('check.O', project.check.O, ' type="number" min="0" step="1"')) +
+      (proportion ? '' : fld('E', inputField('check.E', project.check.E, ' type="number" min="0" step="0.001"'))) + '</div>' +
+      (proportion ? '<p class="k-hint">E = n × CH-Referenzanteil; kein individueller Erwartungswert.</p>' : '') +
+      '<label class="k-check"><input type="checkbox" data-path="check.methodComparable"' +
       (project.check.methodComparable !== false ? ' checked' : '') + '> Gleiche Indikatordefinition, Adjustierung und Referenzbasis verwendet</label>' +
-      '<div class="field"><label>Evidenz oder Datenquelle</label><textarea data-path="check.evidence" placeholder="Auswertung, Audit oder Protokoll der Nachmessung">' + esc(project.check.evidence) + '</textarea></div>' +
-      '<div class="impact-box">' + impactHtml + '</div></div>' +
+      fld('Evidenz oder Datenquelle', textarea('check.evidence', project.check.evidence, 'Auswertung, Audit oder Protokoll der Nachmessung')) +
+      '<div class="k-note impact-box"' + (impactTone !== 'neutral' ? ' data-tone="' + impactTone + '"' : '') + '>' + impactHtml + '</div></div>' +
 
-      '<div class="pdca-phase"><h4>Act: Entscheidung und Lernen</h4>' +
-      '<div class="field"><label>Entscheidung</label><select data-path="act.decision">' +
-      '<option value="">Bitte wählen</option>' +
-      '<option value="standardisieren"' + (project.act.decision === 'standardisieren' ? ' selected' : '') + '>Massnahme standardisieren</option>' +
-      '<option value="anpassen"' + (project.act.decision === 'anpassen' ? ' selected' : '') + '>Massnahme anpassen und erneut prüfen</option>' +
-      '<option value="beenden"' + (project.act.decision === 'beenden' ? ' selected' : '') + '>Massnahme beenden</option>' +
-      '<option value="keine_massnahme"' + (project.act.decision === 'keine_massnahme' ? ' selected' : '') + '>Keine Massnahme erforderlich</option></select></div>' +
-      '<div class="field"><label>Schlussfolgerung</label><textarea data-path="act.conclusion" placeholder="Was wurde gelernt und wie geht es weiter?">' + esc(project.act.conclusion) + '</textarea></div>' +
-      '<p class="hint">O−E ist eine statistische Differenz. Sie darf nicht als Zahl vermeidbarer Ereignisse bezeichnet werden.</p></div></div>' +
+      '<div class="k-stack"><h5 class="k-panel__title">Act: Entscheidung und Lernen</h5>' +
+      fld('Entscheidung', opt('act.decision', [['', 'Bitte wählen'], ['standardisieren', 'Massnahme standardisieren'], ['anpassen', 'Massnahme anpassen und erneut prüfen'], ['beenden', 'Massnahme beenden'], ['keine_massnahme', 'Keine Massnahme erforderlich']]),
+        { hint: 'O−E ist eine statistische Differenz, keine Zahl vermeidbarer Ereignisse.' }) +
+      fld('Schlussfolgerung', textarea('act.conclusion', project.act.conclusion, 'Was wurde gelernt und wie geht es weiter?')) + '</div></div>' +
       (errors.length
-        ? '<div class="validation warn"><strong>Noch offen:</strong> ' + errors.map(esc).join(' ') + '</div>'
-        : '<div class="validation ok"><strong>Statusanforderungen erfüllt:</strong> Für den gewählten Status sind alle Pflichtfelder vorhanden.</div>') +
+        ? '<div class="k-note k-section validation" data-tone="caution">' + UI.icon('alert') + '<div><strong>Noch offen:</strong> ' + errors.map(esc).join(' ') + '</div></div>'
+        : '<div class="k-note k-section validation" data-tone="ok">' + UI.icon('check') + '<div><strong>Statusanforderungen erfüllt:</strong> Für den gewählten Status sind alle Pflichtfelder vorhanden.</div></div>') +
       '</section>';
   }
 
   function renderProtocol() {
     if (!WORKBENCH) return;
     var p = WORKBENCH.protocol;
-    var bannerClass = p.verdict === 'gueltig' ? 'pass' : (p.verdict === 'mit_warnungen' ? 'warn' : 'fail');
+    var verdictTone = p.verdict === 'gueltig' ? 'ok' : (p.verdict === 'mit_warnungen' ? 'caution' : 'danger');
     var verdictLabel = p.verdict === 'gueltig' ? 'Gültig' :
       (p.verdict === 'mit_warnungen' ? 'Gültig mit Hinweisen' : 'Nicht interpretierbar');
     function checkRow(c) {
-      var mark = c.status === 'pass' ? '✓' : (c.status === 'warn' ? '!' : '✕');
+      var t = c.status === 'pass' ? 'ok' : (c.status === 'warn' ? 'caution' : 'danger');
       var label = c.status === 'pass' ? 'bestanden' : (c.status === 'warn' ? 'Hinweis' : 'nicht bestanden');
-      return '<tr><td class="check-' + c.status + '">' + mark + ' ' + label + '</td><td><strong>' +
-        esc(c.label) + '</strong><br><span class="hint">' + esc(c.detail) + '</span></td></tr>';
+      return '<tr><td>' + UI.tone(t, label) + '</td><td><strong>' +
+        esc(c.label) + '</strong><div class="k-meta">' + esc(c.detail) + '</div></td></tr>';
     }
     // Prüfungen nach Gruppe gliedern, unbekannte Gruppen hinten anhängen.
     var groupOrder = (ChiqiQm.CHECK_GROUPS || []).slice();
@@ -648,43 +600,52 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       var inGroup = p.checks.filter(function (c) { return (c.group || 'Datengrundlage') === g; });
       if (!inGroup.length) return '';
       var open = inGroup.filter(function (c) { return c.status !== 'pass'; }).length;
-      return '<tr class="check-group"><th colspan="2">' + esc(g) +
-        ' <span class="hint">(' + inGroup.length + ' Prüfungen' +
-        (open ? ', ' + open + ' mit Befund' : '') + ')</span></th></tr>' +
+      return '<tr class="k-group-row"><th colspan="2">' + esc(g) +
+        ' <span class="k-meta">' + inGroup.length + ' Prüfungen' +
+        (open ? ' · ' + open + ' mit Befund' : '') + '</span></th></tr>' +
         inGroup.map(checkRow).join('');
     }).join('');
     var methods = p.method.indicators.map(function (i) {
-      return '<tr><td><strong>' + esc(i.id) + '</strong><br><span class="hint">' + esc(i.label) + '</span></td>' +
-        '<td>' + esc(i.adjustment || '–') + (i.modelYears.length ? '<br><span class="hint">Modelljahr ' + esc(i.modelYears.join(', ')) + '</span>' : '') + '</td>' +
-        '<td class="num">' + i.referenceYear + '</td><td class="num">' + i.n + '</td><td class="num">' + i.O + '</td>' +
-        '<td class="num">' + num(i.E, 3) + '</td><td>' + esc(i.assessment) + '</td></tr>';
+      return '<tr><td><strong>' + esc(i.id) + '</strong><div class="k-meta">' + esc(i.label) + '</div></td>' +
+        '<td>' + esc(i.adjustment || '–') + (i.modelYears.length ? '<div class="k-meta">Modelljahr ' + esc(i.modelYears.join(', ')) + '</div>' : '') + '</td>' +
+        '<td class="k-num">' + i.referenceYear + '</td><td class="k-num">' + F.n(i.n) + '</td><td class="k-num">' + F.n(i.O) + '</td>' +
+        '<td class="k-num">' + num(i.E, 3) + '</td><td>' + esc(i.assessment) + '</td></tr>';
     }).join('');
     document.getElementById('protocolContent').innerHTML =
-      '<div class="protocol-banner ' + bannerClass + '"><div><strong>' + verdictLabel + '</strong><br>' +
-      '<span class="hint">' + p.failCount + ' blockierende Prüfungen, ' + p.warningCount + ' Hinweise</span></div>' +
-      '<div class="protocol-id">' + esc(p.certificateId) + '</div></div>' +
-      '<div class="form-grid"><div><table><tr><th>Quelle</th><td>' + esc(p.source.period.from || '–') + ' bis ' + esc(p.source.period.to || '–') + '</td></tr>' +
-      '<tr><th>SpiGes</th><td>Version ' + esc(p.source.formatVersion || '–') + ', ' + p.source.caseCount + ' Fälle</td></tr>' +
+      '<div class="k-note" data-tone="' + verdictTone + '">' + UI.icon(verdictTone === 'ok' ? 'check' : (verdictTone === 'caution' ? 'alert' : 'x')) +
+      '<div><strong>' + verdictLabel + '</strong> · ' + p.failCount + ' blockierende Prüfungen, ' + p.warningCount + ' Hinweise</div></div>' +
+      '<div class="k-form-grid k-section"><table class="k-table k-table--kv"><tr><th>Quelle</th><td>' + esc(p.source.period.from || '–') + ' bis ' + esc(p.source.period.to || '–') + '</td></tr>' +
+      '<tr><th>SpiGes</th><td>Version ' + esc(p.source.formatVersion || '–') + ', ' + F.n(p.source.caseCount) + ' Fälle</td></tr>' +
       '<tr><th>Unternehmen</th><td>' + esc(p.source.entId || '–') + '</td></tr>' +
-      '<tr><th>Standorte</th><td>' + esc(p.source.locations.join(', ') || '–') + '</td></tr>' +
-      '<tr><th>Datei-SHA-256</th><td class="protocol-id">' + esc(p.source.fileSha256 || 'nicht verfügbar') + '</td></tr></table></div>' +
-      '<div><table><tr><th>CH-IQI</th><td>Version ' + esc(p.method.chiqiVersion) + '</td></tr>' +
+      '<tr><th>Standorte</th><td>' + esc(p.source.locations.join(', ') || '–') + '</td></tr></table>' +
+      '<table class="k-table k-table--kv"><tr><th>CH-IQI</th><td>Version ' + esc(p.method.chiqiVersion) + '</td></tr>' +
       '<tr><th>Berechnungspfad</th><td>' + esc(p.method.calculationPath) + '</td></tr>' +
-      '<tr><th>Engine</th><td>v' + esc(p.software.engineVersion) + '</td></tr>' +
-      '<tr><th>Parser</th><td>v' + esc(p.software.parserVersion) + '</td></tr>' +
-      '<tr><th>Workbench</th><td>v' + esc(p.software.workbenchVersion) + '</td></tr></table></div></div>' +
-      '<h3 style="margin-top:1.2rem">Prüfungen</h3><table><thead><tr><th>Status</th><th>Prüfung und Ergebnis</th></tr></thead><tbody>' + checks + '</tbody></table>' +
-      '<h3 style="margin-top:1.2rem">Indikatormethodik</h3><table><thead><tr><th>Indikator</th><th>Adjustierung</th><th class="num">Ref.</th>' +
-      '<th class="num">n</th><th class="num">O</th><th class="num">E</th><th>Einordnung</th></tr></thead><tbody>' + methods + '</tbody></table>' +
-      '<div class="warnbox"><strong>Abgrenzung:</strong> ' + p.limitations.map(esc).join(' ') + '</div>';
+      '<tr><th>Engine / Parser / Workbench</th><td>v' + esc(p.software.engineVersion) + ' / v' + esc(p.software.parserVersion) + ' / v' + esc(p.software.workbenchVersion) + '</td></tr></table></div>' +
+      // Technische Kennungen sind hier Beweismittel (§1 Prinzip 6): einen Schritt entfernt, kopierbar.
+      '<details class="k-disclosure k-section"><summary>' + UI.icon('chevron-right', { cls: 'k-chevron' }) + 'Technische Kennungen</summary><div class="k-disclosure__body">' +
+      '<table class="k-table k-table--kv"><tr><th>Nachweis-ID</th><td><span class="k-mono">' + esc(p.certificateId) + '</span> ' + copyBtn(p.certificateId) + '</td></tr>' +
+      '<tr><th>Datei-SHA-256</th><td><span class="k-mono">' + esc(p.source.fileSha256 || 'nicht verfügbar') + '</span> ' + (p.source.fileSha256 ? copyBtn(p.source.fileSha256) : '') + '</td></tr></table></div></details>' +
+      '<h3 class="k-subsection__title k-section">Prüfungen</h3><div class="k-table-wrap"><table class="k-table k-table--compact"><colgroup><col class="k-w-status"><col></colgroup><thead><tr><th>Status</th><th>Prüfung und Ergebnis</th></tr></thead><tbody>' + checks + '</tbody></table></div>' +
+      '<h3 class="k-subsection__title k-section">Indikatormethodik</h3><div class="k-table-wrap"><table class="k-table k-table--compact k-table--auto"><thead><tr><th>Indikator</th><th>Adjustierung</th><th class="k-num">Ref.</th>' +
+      '<th class="k-num">n</th><th class="k-num">O</th><th class="k-num">E</th><th>Einordnung</th></tr></thead><tbody>' + methods + '</tbody></table></div>' +
+      '<details class="k-disclosure k-section"><summary>' + UI.icon('chevron-right', { cls: 'k-chevron' }) + 'Abgrenzung</summary><div class="k-disclosure__body"><p>' + p.limitations.map(esc).join(' ') + '</p></div></details>';
   }
+  function copyBtn(value) {
+    return '<button type="button" class="k-btn k-btn--ghost k-btn--sm" data-copy="' + attr(value) + '">' + UI.icon('copy', { small: true }) + 'Kopieren</button>';
+  }
+  document.getElementById('protocolCard').addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-copy]');
+    if (!b) return;
+    var done = function () { b.lastChild.textContent = 'Kopiert'; setTimeout(function () { b.lastChild.textContent = 'Kopieren'; }, 2000); };
+    try { navigator.clipboard.writeText(b.getAttribute('data-copy')).then(done, function () {}); } catch (err) { /* clipboard unavailable */ }
+  });
 
   function saveActiveProject(message) {
     var project = getProject(WORKBENCH.activeId);
     try {
       ChiqiQm.saveProject(window.localStorage, project);
       document.getElementById('wbSaveState').textContent =
-        (message || 'Lokal gespeichert') + ': ' + new Date().toLocaleTimeString('de-CH');
+        (message || 'Lokal gespeichert') + ' · ' + F.time();
     } catch (e) {
       document.getElementById('wbSaveState').textContent =
         'Lokales Speichern nicht möglich: ' + e.message;
@@ -751,7 +712,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       classified.reviewedAt = project.reviewDate || '';
       project.reviews[ref] = classified;
       ChiqiQm.recordAudit(project, 'Reviewklassifikation aktualisiert');
-      saveActiveProject('Review gespeichert'); renderIndicatorWorkspace(); return;
+      saveActiveProject('Review gespeichert'); renderIndicatorWorkspace(); updateFlow(); return;
     }
     var path = target.getAttribute('data-path');
     if (path) {
@@ -775,7 +736,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
         }
         ChiqiQm.recordAudit(project, 'Status geändert: ' + statusLabel(previousStatus) + ' → ' + statusLabel(value));
       }
-      saveActiveProject('Entwurf gespeichert'); renderIndicatorWorkspace();
+      saveActiveProject('Entwurf gespeichert'); renderIndicatorWorkspace(); updateFlow();
     }
   });
 
@@ -792,8 +753,10 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     if (!WORKBENCH) return;
     downloadJson('chiqi-methodennachweis-' + WORKBENCH.context.entId + '-' + WORKBENCH.context.periodKey + '.json', WORKBENCH.protocol);
   });
-  document.getElementById('btnClearProjects').addEventListener('click', function () {
-    if (!WORKBENCH || !window.confirm('Lokale Entwürfe für diese Institution, Periode und die berechneten Indikatoren löschen?')) return;
+  document.getElementById('btnClearProjects').addEventListener('click', async function () {
+    if (!WORKBENCH) return;
+    var ok = await UI.confirm({ title: 'Lokale Entwürfe löschen?', body: 'Gilt für diese Institution, Periode und alle berechneten Indikatoren.', action: 'Entwürfe löschen', destructive: true });
+    if (!ok || !WORKBENCH) return;
     WORKBENCH.results.forEach(function (r) {
       ChiqiQm.removeProject(window.localStorage, WORKBENCH.projects[r.id].projectId);
       WORKBENCH.projects[r.id] = ChiqiQm.createProject(WORKBENCH.context, r);
@@ -802,15 +765,15 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     renderWorkbench();
     document.getElementById('wbSaveState').textContent = 'Lokale Entwürfe gelöscht.';
   });
-  document.getElementById('btnDiscardCases').addEventListener('click', function () {
-    if (!LAST || !window.confirm('Importierte Falldaten jetzt aus diesem Tab verwerfen? Lokale QM-Entwürfe bleiben erhalten.')) return;
+  document.getElementById('btnDiscardCases').addEventListener('click', async function () {
+    if (!LAST) return;
+    var ok = await UI.confirm({ title: 'Falldaten aus diesem Tab verwerfen?', body: 'Lokale QM-Entwürfe bleiben erhalten.', action: 'Falldaten verwerfen', destructive: true });
+    if (!ok || !LAST) return;
     LAST = null; WORKBENCH = null; input.value = '';
-    document.getElementById('resultCard').style.display = 'none';
-    document.getElementById('protoCard').style.display = 'none';
-    document.getElementById('workbenchCard').style.display = 'none';
-    document.getElementById('protocolCard').style.display = 'none';
+    show('resultCard', false); show('protoCard', false); show('workbenchCard', false); show('protocolCard', false);
     try { sessionStorage.removeItem(COCKPIT_TRANSFER_KEY); } catch (e) {}
-    statusEl.innerHTML = '<span class="ok">✔ Falldaten aus dem Arbeitsspeicher verworfen.</span>';
+    setStatus('ok', 'Falldaten aus dem Arbeitsspeicher verworfen.');
+    updateFlow();
   });
   document.getElementById('btnEvidencePdf').addEventListener('click', function () {
     if (!LAST) return;
@@ -867,8 +830,12 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   function buildReport() {
     if (!LAST) return;
     var res = LAST.res, results = LAST.results, sum = LAST.sum, austritte = LAST.austritte, zeitraum = LAST.zeitraum;
-    var today = new Date().toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' });
+    var today = F.dateLong();
     var ass = results.map(assessRow);
+    var repSig = function (signal) {
+      var sg = UI.SIGNALS[signal];
+      return '<span class="rep-sig" data-signal="' + signal + '">' + (sg.mark ? sg.mark + ' ' : '') + UI.signalLabel(signal) + '</span>';
+    };
     var erhoeht = results.filter(function (r, i) { return r.typ !== 'Anteil' && ass[i].label === 'signifikant erh\u00f6ht'; });
     var tiefer = results.filter(function (r, i) { return r.typ !== 'Anteil' && ass[i].label === 'signifikant tiefer'; });
     var anteile = results.filter(function (r) { return r.typ === 'Anteil'; });
@@ -876,12 +843,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     var refMissTotal = results.reduce(function (a, r) { return a + (r.refMisses || 0); }, 0);
     var outcomeMissTotal = results.reduce(function (a, r) { return a + (r.outcomeMisses || 0); }, 0);
     var qs = Object.keys(sum.nachQuartal).sort();
-    var verzug = false;
-    if (qs.length >= 2) {
-      var prev = qs.slice(0, -1).map(function (q) { return sum.nachQuartal[q]; }).sort(function (a, b) { return a - b; });
-      var med = prev[Math.floor(prev.length / 2)];
-      if (med > 0 && sum.nachQuartal[qs[qs.length - 1]] < 0.6 * med) verzug = true;
-    }
+    var verzug = codingLag(sum);
     var inst = 'Unternehmen ' + (res.meta.entId || 'unbekannt');
     var instSub = res.meta.standorte.length ? 'Standorte (BUR): ' + res.meta.standorte.join(', ') : '';
 
@@ -891,7 +853,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       ? 'Pr\u00fcfenswert: ' + joinDe(erhoeht.map(function (r) { return r.id; })) + ' mit signifikant \u00fcber der Erwartung liegender Mortalit\u00e4t. '
       : 'Kein Mortalitätsindikator liegt statistisch signifikant über der Erwartung. ';
     anteile.forEach(function (r) { exec += r.id + ': Anteil ' + pct(r.rate) + ' (' + r.O + '/' + r.n + ' Resektionsfälle), CH-Referenz ' + pct(r.referenceRate) + '. Richtungsneutral und ohne Risikoadjustierung. '; });
-    if (tiefer.length) exec += 'Positiv: ' + joinDe(tiefer.map(function (r) { return r.id; })) + ' signifikant unter der Erwartung. ';
+    if (tiefer.length) exec += 'Signifikant tiefer: ' + joinDe(tiefer.map(function (r) { return r.id; })) + ' signifikant unter der Erwartung. ';
     if (nb.length) exec += nb.length + ' Indikator' + (nb.length > 1 ? 'en' : '') + ' ist wegen geringer Fallzahl, Erwartungszahl oder Datenlücken nicht beurteilbar. ';
     exec += refMissTotal
       ? 'Achtung: ' + refMissTotal + (refMissTotal === 1 ? ' Fall' : ' F\u00e4lle') + ' ohne passende Referenzrate (Spalte o. Ref.); der Erwartungswert ist dort unvollst\u00e4ndig. '
@@ -901,7 +863,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     exec += 'Alle Markierungen sind Pr\u00fcfhinweise, kein Qualit\u00e4tsurteil.';
 
     var html = '<div class="rep-cover rep-page">' +
-      '<div><div class="rep-brand">\ud83e\udded CH-IQI Kompass <span class="rep-proto">PROTOTYP</span></div>' +
+      '<div><div class="rep-brand">' + UI.mark() + ' CH-IQI Kompass <span class="rep-proto">Prototyp</span></div>' +
       '<div class="rep-cover-title">QM-Pr\u00fcfbericht CH-IQI<br>Unterj\u00e4hrige Auswertung</div>' +
       '<div class="rep-cover-inst">' + esc(inst) + '</div>' +
       '<div class="rep-cover-meta">' + esc(instSub) + (instSub ? '<br>' : '') +
@@ -911,8 +873,8 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
       '<div class="rep-ck"><b>' + austritte + '</b><span>Austritte im Zeitraum</span></div>' +
       '<div class="rep-ck"><b>' + erhoeht.length + '</b><span>Indikatoren signifikant erh\u00f6ht</span></div>' +
       '<div class="rep-ck"><b>' + refMissTotal + '</b><span>F\u00e4lle ohne Referenzrate (o. Ref.)</span></div></div>' +
-      '<div><div class="rep-disclaimer"><b>Interner Pr\u00fcfhinweis f\u00fcr das Qualit\u00e4tsmanagement.</b> ' +
-      'Dieser Bericht erzeugt kein Ranking und kein Qualit\u00e4tsurteil. Er beruht auf unterj\u00e4hrigen, ' +
+      '<div><div class="rep-frame">Statistische Auff\u00e4lligkeit ist ein Pr\u00fcfhinweis, kein Qualit\u00e4tsurteil.</div>' +
+      '<div class="rep-disclaimer">Interner Bericht f\u00fcr das Qualit\u00e4tsmanagement, kein Ranking. Er beruht auf unterj\u00e4hrigen, ' +
       'noch unvollst\u00e4ndigen Daten und dient der fr\u00fchzeitigen internen Priorisierung. ' +
       'Die Verarbeitung erfolgte vollst\u00e4ndig lokal im Browser, es wurden keine Daten \u00fcbermittelt.</div>' +
       '<div class="rep-cover-foot">Datenquelle: eigene SpiGes-Falldaten (' + esc(res.meta.importprotokoll.datei) +
@@ -933,11 +895,11 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
           '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
           '<td class="num">' + pct(r.rate) + '</td>' +
           '<td class="num">' + (r.E == null || !r.n ? '\u2013' : pct(r.E / r.n)) + '</td>' +
-          '<td class="num">' + (r.smr == null ? '\u2013' : r.smr.toFixed(2)) + '</td>' +
-          '<td class="num">' + (a.z == null ? '\u2013' : a.z.toFixed(1)) + '</td>' +
+          '<td class="num">' + F.oe(r.smr) + '</td>' +
+          '<td class="num">' + F.z(a.z) + '</td>' +
           '<td class="num">' + (r.refMisses || 0) + '</td>' +
           '<td class="num">' + (r.outcomeMisses || 0) + '</td>' +
-          '<td>' + a.label + '</td></tr>';
+          '<td>' + repSig(rowSignal(r, a)) + '</td></tr>';
       }).join('') + '</table>' +
       '<p class="rep-note">Voraussetzungen für die Einordnung: mindestens 10 Fälle und mindestens 3 erwartete Ereignisse; bei G5_03 zusätzlich mindestens 3 erwartete Gegenereignisse. Signifikanzgrenze |z| &gt; 1.96. o. Ref. zählt fehlende Referenzwerte. G5_03 ist richtungsneutral und nicht risikoadjustiert; es wird kein SMR berechnet.</p>';
 
@@ -960,13 +922,13 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
         ['Verstorben (gesamt)', sum.verstorben],
         ['Importdatum / Dauer', res.meta.importprotokoll.importDatum + ' / ' + res.meta.importprotokoll.dauerMs + ' ms'],
         ['Engine / Parser', 'Engine v' + ChiqiEngine.ENGINE_VERSION + ' / Parser v' + res.meta.parserVersion]
-      ].map(function (r) { return '<tr><th style="white-space:nowrap">' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
+      ].map(function (r) { return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
       (res.meta.warnings.length
         ? '<p class="rep-note"><b>Warnungen (' + res.meta.warnings.length + '):</b> ' + res.meta.warnings.map(esc).join(' \u00b7 ') + '</p>' : '');
 
     html += '<div class="rep-foot"><h2>Methodik</h2>' +
       '<p>Jedem Fall wird anhand der nationalen BAG-Referenzraten (Referenzjahr ' + CHIQI_DEMO.indicators[0].refJahr + ') ein Erwartungswert zugeordnet; deren Summe ergibt E, der SMR ist O/E, die erwartete Rate E/n. Herzinfarkt (A.1.1) mit differenziertem Risikomodell gem\u00e4ss v5.5 (logistische Regression mit Komorbidit\u00e4ten), Schlaganfall und Pneumonie mit indirekter Alters-/Geschlechts-Standardisierung. z = (O\u2212E)/\u221a(E\u00b7(1\u2212E/n)), Signifikanzgrenze |z| &gt; 1.96, Voraussetzungen n \u2265 10 und E \u2265 3. Berechnungsgrundlagen: CH-IQI Spezifikationen v' + CHIQI_DEMO.meta.chiqiVersion + ' (Quelle BAG, Nutzung mit Quellenangabe freigegeben).</p>' +
-      '<p>G5_03: Zähler G.5.3.F (brusterhaltende Fälle), Nenner G.5.2.F (alle Resektionsfälle gemäss BAG-Definition); weibliches Geschlecht, C50/D05 in Haupt- oder Nebendiagnosen und definierte CHOP-Eingriffe. Nicht brusterhaltende Eingriffe im selben Fall schliessen den Fall aus dem Zähler aus. Berechnung über BAG-fCHIQI v5.5. E = n × nationaler Referenzanteil 2024 (76,02269 %), ohne Risikoadjustierung. Kein SMR und keine pauschale Qualitätsrichtung. Gezählt werden Fälle, nicht einzelne Operationen oder eindeutige Patientinnen.</p>' +
+      '<p>G5_03: Zähler G.5.3.F (brusterhaltende Fälle), Nenner G.5.2.F (alle Resektionsfälle gemäss BAG-Definition); weibliches Geschlecht, C50/D05 in Haupt- oder Nebendiagnosen und definierte CHOP-Eingriffe. Nicht brusterhaltende Eingriffe im selben Fall schliessen den Fall aus dem Zähler aus. Berechnung über BAG-fCHIQI v5.5. E = n × nationaler Referenzanteil 2024 (76.02269%), ohne Risikoadjustierung. Kein SMR und keine pauschale Qualitätsrichtung. Gezählt werden Fälle, nicht einzelne Operationen oder eindeutige Patientinnen.</p>' +
       '<h2>Limitationen</h2>' +
       '<p>Die Auswertung umfasst nur ausgetretene und bereits codierte Fälle; noch nicht codierte Austritte fehlen (Kodierverzug) und können die Raten verzerren. Kleine Fallzahlen ergeben breite Zufallsstreuung; es erfolgt keine Adjustierung für Mehrfachtests. Die Referenzraten beziehen sich auf ein Gesamtjahr, saisonale Effekte sind nicht berücksichtigt. Das Set umfasst drei Mortalitätsindikatoren und einen Resektionsanteil, nicht alle CH-IQI-Indikatoren. Neuere Datenjahre werden mit der ausgewiesenen v5.5-/2024-Referenz ausgewertet; eine fachliche Freigabe der Definition für neuere Kodierjahre ist nicht impliziert. Der unterjährige Vergleich ersetzt keine offizielle BAG-Jahresauswertung.</p>' +
       '<p>Eigene SpiGes-Falldaten, vollst\u00e4ndig lokal verarbeitet \u00b7 CH-IQI Kompass \u00b7 Prototyp \u00b7 Feedback: curtis.voelkle@gmail.com</p></div>';
@@ -988,7 +950,7 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
     try {
       sessionStorage.setItem(COCKPIT_TRANSFER_KEY, JSON.stringify(payload));
     } catch (e) {
-      statusEl.innerHTML = '<span class="err">✘ Die aggregierten Kennzahlen konnten in diesem Browser nicht für das Cockpit bereitgestellt werden.</span>';
+      setStatus('danger', 'Die aggregierten Kennzahlen konnten in diesem Browser nicht für das Cockpit bereitgestellt werden.');
       return;
     }
     if (window.top !== window.self) window.top.postMessage({ type: 'chiqi:navigate', page: 'cockpit' }, '*');
@@ -1013,6 +975,5 @@ body.rep-mode #report{display:block;max-width:1000px;margin:0 auto;background:#f
   });
 })();
 </script>
-<script>if(window.top===window.self){document.getElementById("standaloneNav").style.display="block";}</script>
 </body>
 </html>

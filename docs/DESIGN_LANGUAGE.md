@@ -1,6 +1,6 @@
 # CH-IQI Kompass: Design Language
 
-**Status:** Proposed v1 · **Scope:** `deploy/` (shell `index.html`, `cockpit.html`, `chiqi/`),
+**Status:** Adopted v1 (migration complete 2026-10-10, enforced by tests, §6) · **Scope:** `deploy/` (shell `index.html`, `cockpit.html`, `chiqi/`),
 including the printed reports · **Language of this file:** English; all UI copy examples are
 German (de-CH), as in the app.
 
@@ -166,6 +166,7 @@ measured with the contrast script (§2.7). ▲ marks a change from today's domin
 | `chrome` | `#12294B` | `#0D1A2E` | Shell band (today's header navy, kept) |
 | `chrome-foreground` | `#E9EFF7` | `#E9EFF7` | Text and mark ring on chrome |
 | `chrome-muted` | `#A9BAD0` | `#93A6BF` | Inactive tabs, labels on chrome |
+| `chrome-hover` | `#1B355C` | `#172A45` | Tab hover fill on chrome |
 | `needle` | `#A87700` on light surfaces, `#FFD766` on chrome | `#FFD766` | §0.3 only; graphics, never text on light |
 | `primary` | `#1A4478` | `#A8C7F0` | Filled buttons, links, focus, selected indicator |
 | `primary-foreground` | `#FFFFFF` | `#06101D` | Text on primary |
@@ -303,8 +304,23 @@ rendering, deployed by upload. The shared layer matches that:
 - **`chiqi/ui/`** holds byte-identical copies, following the existing rule that every folder
   runs standalone (like `spiges_parser.js`). A test asserts the copies are identical.
 
-Interfaces start **narrow**: only what the pilot screen needs, grown when a migrating screen
-proves the need. The gallery (`deploy/ui/gallery.html`) shows every variant in both themes.
+Interfaces stay **narrow**: a variant is added when a screen proves the need, and it appears in
+the gallery (`deploy/ui/gallery.html`, with a theme switch) in the same change.
+
+**Static markup shorthands**, upgraded by `KompassUI.init()` on load:
+`<i data-k-icon="lock"></i>` (icon), `<span data-k-mark></span>` (brand mark),
+`<button class="k-infotip" data-k-tip="x" aria-label="Über …"></button>` plus
+`<template id="x-c"><p>…</p></template>` (InfoTip content),
+`<details class="k-disclosure" data-k-persist="key">` (remembered open state), and
+`data-k-standalone hidden` on a band that only shows outside the shell frame.
+
+| File | Role |
+|---|---|
+| `deploy/ui/kompass.css` | Tokens (light, dark, print) and all `k-` components, report styles |
+| `deploy/ui/kompass-ui.js` | `KompassUI`: `fmt`, `esc`, `num`, `badge`, `tone`, `trendMark`, `infoTip`, `hint`, `readout`, `confirm`, `busy`, `icon`, `mark`, `token`, `hatch`, `chartTheme`, `onThemeChange`, `init` |
+| `deploy/ui/favicon.svg` | Mark on the chrome tile |
+| `deploy/ui/gallery.html` | Living reference of every component and state |
+| `deploy/ui/test_contrast.mjs` | WCAG check of every token pair, both themes |
 
 ### 3.1 Numbers: `KompassUI.fmt`
 
@@ -427,7 +443,7 @@ colour literals to Chart.js (today `COLORS` and `'#b6bcc4CC'`-style alpha suffix
 
 | Chart | Encoding |
 |---|---|
-| **Funnel-Plot** | Other institutions `chart-point` 3px dots. CH value `chart-reference` 1px line. 95% limits `chart-limit` dashed, 99.8% solid. **Ihre Institution**: 7px point, `needle` 2px outline, filled with its signal colour if outside the 99.8% limit, else `card`. Log x-axis labelled `n (log)`. |
+| **Funnel-Plot** | Other institutions `chart-point` 3px dots. CH value `chart-reference` 1px line. 95% limits `chart-limit` dashed, 99.8% solid. **Ihre Institution**: 6px ring, `needle` 2.5px outline, `card` fill (the funnel is context; the signal stays with the O/E badge in the reading below the chart). Log x-axis labelled `n (log)`. |
 | **Trendabweichungen** | Horizontal bars of z. Inside ±1.96: `chart-point`. Outside: `high` / `low` by direction and polarity (never green). Zero line `chart-reference`; ±1.96 as `chart-limit` dashed. |
 | **Eigene Daten im BAG-Vergleich** | Three separate bars, not a line: Baseline 2019–2023, QIP 2024, unterjährig. Published values solid `subtle-foreground`; the unterjährig bar **hatched** with a dashed outline and a `vorläufig` label, so "preliminary" never depends on colour or opacity. Gaps, not zeros, for missing values. |
 
@@ -504,25 +520,34 @@ that repeats moves into `kompass.css`.
 
 | # | Rule | Enforced by |
 |---|---|---|
-| R1 | No hex/rgb colour literals outside `kompass.css` (and Chart.js colours only via `chartTheme`) | Ratchet test: per-file ceiling that only shrinks; new files start at 0 |
-| R2 | No literal font-size, radius or shadow values outside `kompass.css` | Same ratchet |
-| R3 | No inline `style=` attributes except layout | Same ratchet |
-| R4 | Figures only via `KompassUI.fmt` | Ratchet on `toFixed(`, `toLocaleString(` outside `ui/` |
-| R5 | Signals via `ui.badge({ signal })`, explanations via `InfoTip`/`Hint`, depth via `Disclosure` | Review checklist |
-| R6 | No hashes or technical IDs on working screens | Review checklist; known sites below |
-| R7 | No emoji or dingbats as icons | Ratchet on the Unicode ranges |
-| R8 | No `window.confirm` / `alert` | Test assertion |
-| R9 | No page-level horizontal scroll at 1536 and 1280 inside the shell | Playwright check in the browser tests |
-| R10 | `deploy/ui/` and `deploy/chiqi/ui/` identical | Test assertion |
+| R1 | No hex/rgb/hsl colour literals in pages (Chart.js colours only via `KompassUI.token`) | `test_design_system.mjs` |
+| R2 | No `font-size`, `font-family`, `border-radius` or `box-shadow` literals in pages | `test_design_system.mjs` |
+| R3 | No `<style>` blocks, no `style="…"` attributes, no `.style.x =` writes (except popover positioning); toggle with `hidden` | `test_design_system.mjs` |
+| R4 | Figures only via `KompassUI.fmt` (no `toFixed`, `toLocale*String`, `Intl.NumberFormat` in pages) | `test_design_system.mjs` |
+| R5 | No legacy component classes (`card`, `chip`, `btn`, `badge`, `hint`, `warnbox`, `signal`, `kpi`); signals via `badge({ signal })`, explanations via InfoTip/Hint, depth via Disclosure | `test_design_system.mjs` + review |
+| R6 | No hashes or technical IDs on working screens | Review checklist |
+| R7 | No emoji or dingbats as icons | `test_design_system.mjs` |
+| R8 | No `window.confirm` / `alert` / `prompt` | `test_design_system.mjs` |
+| R9 | No page-level horizontal scroll at 1536 × 740 and 1280 × 680, light and dark; no JS errors; InfoTips labelled | `test_layout_browser.mjs` |
+| R10 | `deploy/ui/` and `deploy/chiqi/ui/` byte-identical | `test_design_system.mjs` |
+| R11 | Decimal point in figures (`1.96`, `99.8%`), never a decimal comma | `test_design_system.mjs` |
+| T | Dark tokens identical in both dark blocks; JS chart fallbacks equal CSS; every token pair meets WCAG | `test_design_system.mjs`, `ui/test_contrast.mjs` |
 
-The ratchet is `deploy/test_design_ratchet.mjs`, in the style of the existing tests (plain
-`node`, `assert`), with its baseline in `deploy/ui/ratchet-baseline.json`. For `cockpit.html`
-it scans only markup and code, skipping the embedded data block.
+Exempt: `deploy/ui/` itself, `vendor/`, tests, and the engine and data modules maintained
+upstream (`chiqi_engine.js`, `spiges_parser.js`, `chiqi_demo_defs.js`, `qm_workbench.js`).
+Lines longer than 20'000 characters are data (the QIP dataset in `cockpit.html`) and are not
+scanned. There is no baseline: every count is 0, and any new violation fails.
 
-Several existing tests assert exact copy (`Zwei Ansichten, zwei verschiedene Fragen`,
-`Diese Auswahl wirkt nur auf die Radartabelle.`). Where this document removes that copy, the
-migrating commit updates those assertions to the new structure (`data-testid`, roles) rather
-than keeping the sentence for the test.
+**Where the checks run**
+
+- Locally: `node deploy/test_design_system.mjs`, `node deploy/ui/test_contrast.mjs`,
+  `node deploy/test_layout_browser.mjs` (Playwright).
+- CI: `.github/workflows/design-system.yml` on every push and pull request touching `deploy/`.
+- Claude Code: the PostToolUse hook in `.claude/settings.json` runs the rules after each edit
+  under `deploy/` and reports violations back to the agent at once. `AGENTS.md` / `CLAUDE.md`
+  point every agent to this file.
+
+A deliberate exception changes this document and the rule in the same commit, with the reason.
 
 **UI review checklist:** recipe used · interpretation test applied to every text · signal
 vocabulary and polarity correct · no IDs · both themes and print checked · long names,
@@ -531,30 +556,21 @@ with their reason.
 
 ---
 
-## 7. Migration plan
+## 7. Migration record
 
-Small atomic commits, each stating its design argument. Two pilot stages with an approval gate.
-Changes go to `deploy/` and are uploaded as today; the stale root copies are replaced by that
-upload.
+The full migration landed in one change on 2026-10-10 at the owner's request (the approval gate
+of the original plan was waived; review happens on the pull request with the screenshots in
+`docs/design/reference/`).
 
-| Step | Scope | Done when |
-|---|---|---|
-| 0 | **Foundation:** `deploy/ui/kompass.css` + `kompass-ui.js` (empty shells), copies in `chiqi/ui/`, identity test; SVG mark replaces 🧭 in the shell; favicon; `theme-color`; one font stack | Existing tests green; pages load from `file://` and Pages |
-| 1 | **Tokens** (§2) incl. dark values, state recipes, type scale; `test_contrast.mjs` | Both themes render; contrast test passes |
-| 2 | **Ratchet** with today's per-file baseline | `node deploy/test_design_ratchet.mjs` green |
-| 3 | **Stage A components (narrow):** `fmt`, `Badge`, `InfoTip`/`Hint`, `Panel`/`Readout`/`Disclosure`, `Table`, `Field`/`ControlStrip`, `chartTheme`; gallery started | Unit tests green; gallery shows both themes |
-| 4 | **Stage A screen: shell + Cockpit.** Control strip, readout row, signal vocabulary (green → neutral, trend green → `low`), decimal-point copy, flat Chart.js theme with needle marker, hint paragraphs → `InfoTip`/`Disclosure`, single footer | Cockpit tests updated and green; screenshots at 1536 × 740 and 1280 × 680, light and dark; no horizontal scroll |
-| **Gate** | **Your approval** of the shell + Cockpit appearance and the Stage A gallery | Approved screenshots in `docs/design/reference/` |
-| 5 | **Stage B: Unterjährige Auswertung.** `Stepper`, drop zone, result table with column `InfoTip`s, conditional `Kodierverzug möglich`, workbench tables fit without `min-width`, `ui.confirm` for both sites, evidence IDs behind *Technische Kennungen* | Workbench and compare tests green; screenshots |
-| 6 | **Reports:** both PDF reports on the print tokens and shared formatters | Browser report tests green; sample PDFs approved |
-| 7 | Remove the legacy page-local style blocks once every ratchet count is 0 | — |
-
-**Known technical-ID sites:**
-
-- `chiqi/index.html` evidence record: `certificateId`, `Datei-SHA-256` (keep in Nachweis and
-  print, behind *Technische Kennungen* on screen, with *Kopieren*).
-- `chiqi/index.html` case table: original Fall-ID shown next to the local reference (move to
-  row expansion: *Fall-ID für KIS anzeigen*).
+| Area | What changed |
+|---|---|
+| Foundation | `deploy/ui/` (tokens, components, kit, mark, favicon, gallery), copy in `chiqi/ui/`, one font stack, `theme-color`, emoji removed |
+| Shell | Chrome band with mark, needle tab indicator, `Prototyp` badge, feedback link; standalone band on sub-pages |
+| Cockpit | Control strip; readout row; O/E-Radar table with signal badges and row selection; Funnel with grey reference limits and needle ring; trend bars `high`/`low` with ±1.96 guides; comparison panel with stepper and hatched preliminary bar; Fallzahl-Monitor; four disclaimers reduced to one footer line plus *Quelle & Methodik* |
+| Unterjährige Auswertung | Stepper (Import → Nachweis); drop zone; result table with *Signal* column and column InfoTips; `vorläufig` and conditional `Kodierverzug möglich`; workbench on shared fields, readouts and tables; `KompassUI.confirm` for both destructive actions; evidence IDs behind *Technische Kennungen* with *Kopieren* |
+| Reports | Shared print styles and tokens (always light), mark instead of emoji, signal marks in tables, frame sentence on the cover, decimal points, *Anstieg/Rückgang* instead of *Verschlechterung/Verbesserung*, *Signifikant tiefer* instead of *Positive Signale* |
+| Vocabulary | `unauffällig` neutral, not green; workbench labels (*prüfenswert erhöht*, *ohne statistisches Signal*) mapped to the app vocabulary in the UI |
+| Tests | Copy assertions that pinned removed sentences now assert structure (`test_compare_ux.mjs`); the result-table assertion includes the new *Signal* column; the vm report test loads the UI kit |
 
 ---
 
@@ -562,5 +578,6 @@ upload.
 
 - **`docs/DESIGN_LANGUAGE.md`** (this file). Any agent or contributor styling a page reads it
   first.
-- **`deploy/ui/gallery.html`** is the living reference once step 3 lands.
+- **`deploy/ui/gallery.html`** is the living reference.
+- **`AGENTS.md`** (imported by `CLAUDE.md`) summarises the rules for contributors and agents.
 - **`docs/design/reference/`** holds the approved screenshots that serve as the visual baseline.
