@@ -8,7 +8,7 @@
  * O/E auch für eine Teilgruppe indirekt standardisiert.
  *
  * Kodierungen gemäss BFS-Variablenliste (Medizinische Statistik / SpiGes):
- *  - eintrittsart (MS 1.2.V03): 1 Notfall, 2 angemeldet/geplant, 3 Geburt,
+ *  - eintrittsart (MS 1.2.V03): 1 Notfall, 2 angemeldet/geplant (elektiv), 3 Geburt,
  *    4 interner Übertritt, 5 Verlegung innert 24 h, 8 andere, 9 unbekannt
  *  - eintritt_aufenthalt (MS 1.2.V01): 1 Zuhause, 2 Zuhause mit Spitex,
  *    3 Krankenheim/Pflegeheim, 4 Altersheim/andere sozialmed. Institution,
@@ -53,7 +53,7 @@
       labels: { M: 'männlich', F: 'weiblich' } },
     { key: 'admission', label: 'Eintrittsart',
       classify: function (c) { return code(c.eintrittsart); },
-      labels: { '1': 'Notfall', '2': 'geplant', '3': 'Geburt', '4': 'interner Übertritt', '5': 'Verlegung < 24 h', '8': 'andere' } },
+      labels: { '1': 'Notfall', '2': 'elektiv', '3': 'Geburt', '4': 'interner Übertritt', '5': 'Verlegung < 24 h', '8': 'andere' } },
     { key: 'origin', label: 'Aufenthalt vor Eintritt',
       classify: function (c) { return code(c.eintrittAufenthalt); },
       labels: { '1': 'Zuhause', '2': 'Zuhause mit Spitex', '3': 'Pflegeheim', '4': 'Altersheim', '5': 'Psychiatrie',
