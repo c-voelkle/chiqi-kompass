@@ -35,6 +35,7 @@ to the repository root.
     node deploy/test_hospital_groups.mjs               # comparison groups + KZP24 data coverage
     node deploy/test_hospital_groups_browser.mjs       # needs Playwright
     node deploy/test_own_strata_browser.mjs            # needs Playwright; interim age group → BAG strata, funnel point
+    node deploy/test_own_check_browser.mjs             # needs Playwright; BAG 2024 reconciliation, feedback file
 
 CI (`.github/workflows/design-system.yml`) runs the same checks. In Claude Code a
 PostToolUse hook (`.claude/hooks/design-check.sh`) runs the rules after every edit

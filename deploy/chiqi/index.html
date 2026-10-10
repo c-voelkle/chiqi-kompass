@@ -70,7 +70,7 @@
         <button id="btnPdf" type="button" class="k-btn"><i data-k-icon="file-text"></i>PDF-Bericht</button>
         <button id="btnCockpit" type="button" class="k-btn k-btn--primary">Mit BAG-Verlauf vergleichen</button>
         <button class="k-infotip" data-k-tip="tip-transfer" aria-label="Über den Vergleich im Cockpit"></button>
-        <template id="tip-transfer-c"><p>Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p><p>Mit einer Altersklasse als einzigem Filter vergleicht das Cockpit mit den BAG-Teilindikatoren derselben Altersgruppe (z. B. A.1.4.M Herzinfarkt 65–84). Für andere Filter publiziert das BAG keine Vergleichswerte.</p></template>
+        <template id="tip-transfer-c"><p>Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p><p>Dazu kommen Zeitraum, Fallzählungen und Versionen für den Abgleich mit der BAG-Publikation.</p><p>Mit einer Altersklasse als einzigem Filter vergleicht das Cockpit mit den BAG-Teilindikatoren derselben Altersgruppe (z. B. A.1.4.M Herzinfarkt 65–84). Für andere Filter publiziert das BAG keine Vergleichswerte.</p></template>
       </div>
     </div>
     <div class="k-panel__toolbar k-no-print" id="groupBar" role="group" aria-labelledby="groupBarLabel">
@@ -1040,6 +1040,17 @@
       })
     };
     if (grouped) payload.group = { age: view.filter.age };
+    // Angaben für den Abgleich mit der BAG-Publikation und die Feedback-Datei:
+    // nur Zeitraum, Zählungen und Versionen, keine Fall-IDs, Diagnosen oder Kennungen.
+    payload.meta = {
+      years: Object.keys(LAST.sum.nachAustrittsjahr).map(Number).sort(),
+      quarters: Object.keys(LAST.sum.nachQuartal).sort(),
+      counts: { faelle: LAST.res.meta.counts.faelle, austritte: LAST.austritte, nochHospitalisiert: LAST.res.meta.counts.faelle - LAST.austritte },
+      warnings: LAST.res.meta.warnings.length,
+      codingLag: codingLag(LAST.sum),
+      versions: { engine: ChiqiEngine.ENGINE_VERSION, spec: CHIQI_DEMO.meta.chiqiVersion, refJahr: CHIQI_DEMO.indicators[0].refJahr,
+        parser: LAST.res.meta.parserVersion || null, spiges: LAST.res.meta.formatVersion || null }
+    };
     try {
       sessionStorage.setItem(COCKPIT_TRANSFER_KEY, JSON.stringify(payload));
     } catch (e) {
