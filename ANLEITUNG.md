@@ -14,7 +14,7 @@ Lauf ist unter Actions → Pages → «Run workflow» möglich.
 | Pfad | Rolle |
 |---|---|
 | `index.html` | **Shell**: Kopfleiste mit Tabs, lädt die Unterseiten im Frame. Standardmässig das Cockpit. |
-| `cockpit.html` | Cockpit QIP 2024 mit eingebetteten BAG-Daten (`#qip-data`) |
+| `cockpit.html` | Cockpit QIP 2024 mit eingebetteten BAG-Daten (`#qip-data`, kompaktes Format 2 aus `tools/build_qip_data.py`) |
 | `kzp24_attributes.js` | Spitalmerkmale (Typ, Kanton, Rechtsform, Austritte, Notfall/IPS, Aus- und Weiterbildung, Akutbetten, CMI) aus den BAG-Kennzahlen der Schweizer Spitäler 2024 und der Zeitreihe; erzeugt mit `tools/build_kzp_attributes.py` |
 | `hospital_groups.js` | Vergleichsgruppen im Cockpit (Struktur: Spitaltyp, Region, Grösse, Rechtsform, Aus- und Weiterbildung; Leistungsprofil: Notfall/IPS, Herzkatheter, CMI, Fallzahl im Indikator) |
 | `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) mit SpiGes-Import, Engine und lokaler QM-Workbench |
@@ -47,6 +47,8 @@ standalone (zeigen dann einen Zurück-Link) und offline über `file://`.
 
 - Nach Änderungen am Design-System:
   `cp deploy/ui/kompass.css deploy/ui/kompass-ui.js deploy/ui/favicon.svg deploy/chiqi/ui/`
+- BAG-Daten (QIP) neu einbetten, kompakt (Format 2):
+  `python3 tools/build_qip_data.py <qip24_data.json>`
 - Spitalmerkmale neu erzeugen:
   `python3 tools/build_kzp_attributes.py <kzp24_data.xlsx> <kzp24_KZ_TimeSerie.xlsx>`
 
