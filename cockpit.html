@@ -84,18 +84,25 @@
       <div class="k-panel__heading">
         <h2 class="k-panel__title" id="group-title">Vergleichsgruppe
           <button class="k-infotip" data-k-tip="tip-group" aria-label="Über die Vergleichsgruppe"></button></h2>
-        <template id="tip-group-c"><p>Schränkt den Funnel-Plot auf Betriebe mit den gewählten Merkmalen ein. Referenzlinie und Kontrollgrenzen beziehen sich dann auf den gepoolten Rohwert der Gruppe (Summe der Ereignisse ÷ Summe der Fälle) statt auf den CH-Wert. Das O/E-Radar bleibt beim eigenen Erwartungswert.</p><p>Merkmale aus den BAG-Kennzahlen der Schweizer Spitäler 2024: Spitaltyp nach BFS-Typologie, Kanton, Rechtsform und stationäre Austritte. Regionen sind die BFS-Grossregionen; die Grössenklassen legt der CH-IQI Kompass fest. Standorte übernehmen die Merkmale ihres Betriebs.</p></template>
+        <template id="tip-group-c"><p>Schränkt den Funnel-Plot auf Betriebe mit den gewählten Merkmalen ein. Referenzlinie und Kontrollgrenzen beziehen sich dann auf den gepoolten Rohwert der Gruppe (Summe der Ereignisse ÷ Summe der Fälle) statt auf den CH-Wert. Das O/E-Radar bleibt beim eigenen Erwartungswert.</p><p>Merkmale aus den BAG-Kennzahlen der Schweizer Spitäler 2024: Spitaltyp, Kanton, Rechtsform, Austritte, Notfall/IPS, Aus- und Weiterbildung; Akutbetten und CMI brutto aus der Zeitreihe 2024, sonst 2023. Herzkatheter: mindestens 100 Koronarkatheter-Fälle 2024 (A.3.1.F). Fallzahl: Drittel der Institutionen mit Fällen im gewählten Indikator. Grössen- und CMI-Klassen legt der CH-IQI Kompass fest. Standorte übernehmen die Kennzahlen ihres Betriebs.</p></template>
         <span class="k-meta k-badges" id="group-meta"></span>
       </div>
       <div class="k-panel__actions">
         <button class="k-btn k-btn--sm k-btn--ghost" id="group-reset" type="button" hidden><i data-k-icon="x"></i>Alle Betriebe</button>
       </div>
     </div>
-    <div class="k-panel__toolbar" id="group-bar">
-      <label class="k-field"><span class="k-field__label">Spitaltyp</span><select class="k-select k-w-lg" data-group="typ"></select></label>
+    <div class="k-panel__toolbar" id="group-bar" role="group" aria-label="Strukturmerkmale">
+      <label class="k-field"><span class="k-field__label">Spitaltyp</span><select class="k-select k-w-md" data-group="typ"></select></label>
       <label class="k-field"><span class="k-field__label">Region</span><select class="k-select k-w-sm" data-group="region"></select></label>
       <label class="k-field"><span class="k-field__label">Grösse</span><select class="k-select k-w-sm" data-group="size"></select></label>
       <label class="k-field"><span class="k-field__label">Rechtsform</span><select class="k-select k-w-sm" data-group="rform"></select></label>
+      <label class="k-field"><span class="k-field__label">Aus- und Weiterbildung</span><select class="k-select k-w-sm" data-group="teach"></select></label>
+    </div>
+    <div class="k-panel__toolbar" id="group-bar-care" role="group" aria-label="Leistungsprofil">
+      <label class="k-field"><span class="k-field__label">Notfall / IPS</span><select class="k-select k-w-md" data-group="care"></select></label>
+      <label class="k-field"><span class="k-field__label">Herzkatheter</span><select class="k-select k-w-md" data-group="cath"></select></label>
+      <label class="k-field"><span class="k-field__label">CMI</span><select class="k-select k-w-sm" data-group="cmi"></select></label>
+      <label class="k-field"><span class="k-field__label">Fallzahl im Indikator</span><select class="k-select k-w-md" data-group="volume"></select></label>
     </div>
   </section>
 
@@ -340,12 +347,30 @@ const STANDORT_PARENT=(()=>{
   const betriebe=IDX.betrieb.insts.filter(x=>!x.a).map(x=>x.n);
   return IDX.standort.insts.map(x=>x.a?null:(betriebe.find(b=>plain(x.n).startsWith(plain(b)+' - '))||null));
 })();
-function groupAttrs(level,i){
-  if(!HAS_GROUPS) return null;
+function kzpAttrs(level,i){
   const name=level==='standort'?STANDORT_PARENT[i]:IDX.betrieb.insts[i].n;
   return name?KZP[name]||null:null;
 }
-const groupSelects=[...document.querySelectorAll('#group-bar [data-group]')];
+// Merkmale je Institution für Ebene, Indikator und Periode: Kennzahlen plus zwei
+// Werte aus der QIP-Publikation selbst, Herzkatheter-Fälle (A.3.1.F, 2024) und
+// das Fallzahl-Drittel im gewählten Indikator. Neu gebildet, wenn sich eines ändert.
+let groupCtx=null;
+function syncGroupContext(){
+  if(!HAS_GROUPS) return;
+  const s=state(), level=s.level, per=level==='standort'?'24':s.per, key=level+'|'+s.ind+'|'+per;
+  if(groupCtx&&groupCtx.key===key) return;
+  const idx=IDX[level];
+  const cath=new Map((idx.byCode.get('A.3.1.F')||[]).map(r=>[r[0],vals(r,level,'24').n]));
+  const vol=new Map((idx.byCode.get(s.ind)||[]).map(r=>[r[0],analysisVals(r,level,per).n]));
+  const bands=HG.makeVolumeBands(idx.insts.map((x,i)=>x.a?null:(vol.get(i)??null)));
+  HG.setVolumeBands(bands);
+  const attrs=idx.insts.map((x,i)=>x.a?null:{...(kzpAttrs(level,i)||{}),
+    cath:cath.has(i)?(cath.get(i)??0):null, volBand:bands?bands.bandOf(vol.get(i)??null):null});
+  groupCtx={key,attrs};
+  fillGroupOptions();
+}
+function groupAttrs(level,i){syncGroupContext();return groupCtx?groupCtx.attrs[i]:null;}
+const groupSelects=[...document.querySelectorAll('#group-card [data-group]')];
 function groupFilter(){
   const f=HAS_GROUPS?HG.emptyFilter():{};
   groupSelects.forEach(sel=>{f[sel.dataset.group]=sel.value;});
@@ -354,8 +379,7 @@ function groupFilter(){
 function groupActive(){return HAS_GROUPS&&HG.isActive(groupFilter());}
 function fillGroupOptions(){
   if(!HAS_GROUPS){$('group-card').hidden=true;return;}
-  const level=$('f-level').value, insts=IDX[level].insts;
-  const opts=HG.options(insts.map((x,i)=>x.a?null:groupAttrs(level,i)));
+  const opts=HG.options(groupCtx.attrs);
   for(const sel of groupSelects){
     const cur=sel.value;
     sel.innerHTML='<option value="">alle</option>'+opts[sel.dataset.group].map(g=>g.options.length?
@@ -371,6 +395,7 @@ function groupMembers(){
 }
 function renderGroupMeta(){
   if(!HAS_GROUPS) return;
+  syncGroupContext();
   const s=state(), level=s.level, insts=IDX[level].insts, unit=level==='standort'?'Standorte':'Betriebe';
   const total=insts.filter(x=>!x.a).length, active=groupActive();
   $('group-reset').hidden=!active;
@@ -546,6 +571,7 @@ function renderFunnelReading(radar,point,p0){
 }
 
 function renderFunnel(){
+  renderGroupMeta(); // Fallzahl-Drittel und Mitglieder hängen vom Indikator ab
   const s=state(), meta=CODEMAP.get(s.ind), idx=IDX[s.level];
   const per = s.level==='standort'?'24':s.per;
   const pts=[],ownPts=[], grouped=groupActive(), gf=groupFilter();
@@ -812,22 +838,23 @@ function renderAll(){
   const mfz=assessMfz(s.level,s.i,per);
   const inst=IDX[s.level].insts[s.i];
   $('r-title').textContent=inst.n+' · '+F.period(per);
-  renderKPIs(radarRows,mfz); renderRadar(); renderMfz(mfz); renderGroupMeta(); renderFunnel(); renderTrendBar(radarRows); renderOwnHistory();
+  renderKPIs(radarRows,mfz); renderRadar(); renderMfz(mfz); renderFunnel(); renderTrendBar(radarRows); renderOwnHistory();
 }
 
 (function init(){
 try{
-  fillInstitutions(); fillIndicators(); fillOwnInstitutions(); fillOwnIndicators(); fillGroupOptions();
+  fillInstitutions(); fillIndicators(); fillOwnInstitutions(); fillOwnIndicators();
+  if(!HAS_GROUPS) $('group-card').hidden=true;
   if(HAS_CHART){
     UI.chartTheme(Chart);
     UI.onThemeChange(()=>{UI.chartTheme(Chart);renderAll();});
   }
   syncOwnModeLayout(!!ownTransfer);
-  $('f-level').addEventListener('change',()=>{fillInstitutions();fillGroupOptions();renderAll();});
-  groupSelects.forEach(sel=>sel.addEventListener('change',()=>{renderGroupMeta();renderFunnel();}));
+  $('f-level').addEventListener('change',()=>{fillInstitutions();renderAll();});
+  groupSelects.forEach(sel=>sel.addEventListener('change',renderFunnel));
   $('group-reset').addEventListener('click',()=>{
     groupSelects.forEach(sel=>{sel.value='';});
-    renderGroupMeta(); renderFunnel(); groupSelects[0].focus();
+    renderFunnel(); groupSelects[0].focus();
   });
   $('f-inst').addEventListener('change',()=>{
     if(ownTransfer&&$('f-level').value==='betrieb'&&[...$('own-inst').options].some(o=>o.value===$('f-inst').value)){

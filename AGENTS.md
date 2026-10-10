@@ -40,8 +40,9 @@ under `deploy/`. If a rule blocks a deliberate exception, change the design doc 
 the rule together and say why in the commit.
 
 `deploy/kzp24_attributes.js` is generated from the BAG "Kennzahlen der Schweizer
-Spitäler" workbook: `python3 tools/build_kzp_attributes.py <kzp24_data.xlsx>` (needs
-openpyxl). Name differences between the QIP and KZP publications are listed
+Spitäler" workbook and its time series:
+`python3 tools/build_kzp_attributes.py <kzp24_data.xlsx> <kzp24_KZ_TimeSerie.xlsx>` (needs
+openpyxl). Acute beds and CMI come from the time series (2024, else 2023). Name differences between the QIP and KZP publications are listed
 explicitly in `ALIASES` in that script; the build fails if a QIP Betrieb has no match.
 
 Other tests (`test_indicator_report*.mjs`, `chiqi/test_qm_workbench.mjs`, `chiqi/test_breast_indicator.mjs`,

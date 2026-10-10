@@ -54,6 +54,19 @@ try {
     assert.match(report, /Einordnung in der Vergleichsgruppe/);
     assert.match(report, /Vergleichsgruppe Grundversorgung \(K121–K123\) · Zürich/);
 
+    // Leistungsprofil: Herzkatheter aus der QIP-Publikation, Fallzahl-Drittel je Indikator.
+    await page.locator('#group-reset').click();
+    await page.locator('#group-card select[data-group="cath"]').selectOption('yes');
+    assert.match(await page.locator('#group-meta').innerText(), /^Herzkatheter, ≥ 100 Fälle · 35 von 153 Betrieben · Ihre Institution gehört zur Gruppe/);
+    const volume = page.locator('#group-card select[data-group="volume"]');
+    const before = await volume.locator('option').allInnerTexts();
+    await volume.selectOption('V3');
+    assert.match(await page.locator('#group-meta').innerText(), /Fallzahl oberes Drittel: [\d’]+–[\d’]+ Fälle · \d+ von 153 Betrieben/);
+    await page.locator('#f-ind').selectOption('D.1.1.M');
+    assert.notDeepEqual(await volume.locator('option').allInnerTexts(), before, 'Drittel folgen dem Indikator');
+    assert.equal(await volume.inputValue(), 'V3');
+    await page.locator('#f-ind').selectOption('A.1.1.M');
+
     await page.locator('#group-reset').click();
     const back = await funnel(page);
     assert.equal(back.n, all.n);

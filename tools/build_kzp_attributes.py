@@ -1,12 +1,16 @@
 """Baut deploy/kzp24_attributes.js aus den BAG-Kennzahlen der Schweizer Spitäler.
 
 Aufruf (Repo-Wurzel):
-    python3 tools/build_kzp_attributes.py <kzp24_data.xlsx>
+    python3 tools/build_kzp_attributes.py <kzp24_data.xlsx> <kzp24_KZ_TimeSerie.xlsx>
 
-Quelle: BAG, Kennzahlen der Schweizer Spitäler 2024 (kzp24_data.xlsx, Blatt
-KZ2024_KZP24). Übernommen werden je Betrieb nur die Merkmale, nach denen das
-Cockpit Vergleichsgruppen bildet: Kanton, Spitaltyp (BFS-Typologie),
-Rechtsform, Aktivitätstyp und stationäre Austritte.
+Quellen: BAG, Kennzahlen der Schweizer Spitäler 2024 (kzp24_data.xlsx, Blatt
+KZ2024_KZP24) und Zeitreihe ab 2008 (kzp24_KZ_TimeSerie.xlsx). Übernommen
+werden je Betrieb nur die Merkmale, nach denen das Cockpit Vergleichsgruppen
+bildet: Kanton, Spitaltyp (BFS-Typologie), Rechtsform, Aktivitätstyp,
+stationäre Austritte, Notfallstation/IPS, Aus- und Weiterbildung sowie
+Akutbetten und CMI brutto (Akut). Betten und CMI sind in kzp24_data.xlsx
+nicht befüllt; sie kommen aus der Zeitreihe, Datenjahr 2024, ersatzweise 2023
+(das Jahr wird je Wert mitgeschrieben).
 
 Zuordnung zu den Betrieben der QIP-Publikation (cockpit.html, #qip-data):
 über den normalisierten Betriebsnamen. Namen, die sich zwischen den beiden
@@ -48,7 +52,35 @@ def norm(s):
     return re.sub(r'[^a-z0-9]+', ' ', s).strip()
 
 
-def main(xlsx):
+def tokens(value):
+    return [t.strip() for t in str(value or '').split(',') if t.strip()]
+
+
+def time_series(path):
+    """{jahr: {normalisierter Name: Zeile}} aus dem Blatt «KZ ab … 2008»."""
+    wb = openpyxl.load_workbook(path, read_only=True)
+    ws = next(w for w in wb.worksheets if w.title.startswith('KZ ab'))
+    rows = ws.iter_rows(values_only=True)
+    hdr = next(rows)
+    out = {}
+    for r in rows:
+        rec = dict(zip(hdr, r))
+        if rec.get('Inst') and rec.get('JAHR') in (2023, 2024):
+            out.setdefault(rec['JAHR'], {})[norm(rec['Inst'])] = rec
+    return out
+
+
+def latest(ts, keys, column):
+    """Wert aus 2024, ersatzweise 2023; (Wert, Jahr) oder (None, None)."""
+    for year in (2024, 2023):
+        for key in keys:
+            rec = ts.get(year, {}).get(key)
+            if rec and isinstance(rec.get(column), (int, float)):
+                return rec[column], year
+    return None, None
+
+
+def main(xlsx, ts_path):
     html = COCKPIT.read_text(encoding='utf-8')
     data = json.loads(re.search(r'<script type="application/json" id="qip-data">(.*?)</script>', html, re.S).group(1))
     qip = [x['n'] for x in data['betrieb']['insts'] if not x['a']]
@@ -65,6 +97,7 @@ def main(xlsx):
                 raise SystemExit('Doppelter Betriebsname in den Kennzahlen: ' + rec['Inst'])
             kzp[key] = rec
 
+    ts = time_series(ts_path)
     out, missing = {}, []
     for name in qip:
         rec = kzp.get(norm(ALIASES.get(name, name)))
@@ -78,13 +111,23 @@ def main(xlsx):
             'rf': rec['RForm'] or None,
             'akt': rec['Akt'] or None,
             'aus': int(aus) if isinstance(aus, (int, float)) else None,
+            'sl': tokens(rec.get('SL')),
+            'wb': tokens(rec.get('WB')),
             'kzp': rec['Inst'],
         }
+        keys = [norm(rec['Inst']), norm(name)]
+        bet, bet_year = latest(ts, keys, 'BettenStatA')
+        cmi, cmi_year = latest(ts, keys, 'CMIbA')
+        if bet is not None:
+            out[name].update(bet=round(bet, 1), betJ=bet_year)
+        if cmi is not None:
+            out[name].update(cmi=round(cmi, 3), cmiJ=cmi_year)
     if missing:
         raise SystemExit('Ohne Zuordnung: ' + '; '.join(missing))
 
     payload = {
-        'quelle': 'BAG, Kennzahlen der Schweizer Spitäler 2024 (kzp24_data.xlsx, Blatt KZ2024_KZP24)',
+        'quelle': 'BAG, Kennzahlen der Schweizer Spitäler 2024 (kzp24_data.xlsx, Blatt KZ2024_KZP24; '
+                  'Akutbetten und CMI aus kzp24_KZ_TimeSerie.xlsx, 2024, ersatzweise 2023)',
         'jahr': 2024,
         'betriebe': out,
     }
@@ -93,10 +136,13 @@ def main(xlsx):
         '// Quelle: ' + payload['quelle'] + '. Auszugsweiser Abdruck unter Quellenangabe gestattet.\n'
         'window.KZP24 = ' + json.dumps(payload, ensure_ascii=False, separators=(',', ':')) + ';\n',
         encoding='utf-8')
-    print(f'{len(out)} von {len(qip)} QIP-Betrieben zugeordnet -> {OUT.relative_to(ROOT)}')
+    with_bet = sum(1 for a in out.values() if 'bet' in a)
+    with_cmi = sum(1 for a in out.values() if 'cmi' in a)
+    print(f'{len(out)} von {len(qip)} QIP-Betrieben zugeordnet -> {OUT.relative_to(ROOT)}'
+          f' (Akutbetten {with_bet}, CMI {with_cmi})')
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 3:
         raise SystemExit(__doc__)
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])

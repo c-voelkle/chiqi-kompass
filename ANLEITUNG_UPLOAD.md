@@ -9,8 +9,8 @@ Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schrit
 | `index.html` | **Shell**: Landingpage mit Kopfleiste/Tabs, lädt Unterseiten im Frame. Die kommunizierte URL https://c-voelkle.github.io/chiqi-kompass/ zeigt weiterhin standardmässig das Cockpit. |
 | `cockpit.html` | Cockpit QIP 2024 (bisheriger Inhalt der index.html) |
 | `spiges/index.html` | SpiGes-Import-Demo (Beta) + Parser + Testdatei |
-| `kzp24_attributes.js` | Spitalmerkmale (Typ, Kanton, Rechtsform, Austritte) aus den BAG-Kennzahlen der Schweizer Spitäler 2024; erzeugt mit `tools/build_kzp_attributes.py` |
-| `hospital_groups.js` | Vergleichsgruppen im Cockpit (Spitaltyp, Region, Grösse, Rechtsform) |
+| `kzp24_attributes.js` | Spitalmerkmale (Typ, Kanton, Rechtsform, Austritte, Notfall/IPS, Aus- und Weiterbildung, Akutbetten, CMI) aus den BAG-Kennzahlen der Schweizer Spitäler 2024 und der Zeitreihe; erzeugt mit `tools/build_kzp_attributes.py` |
+| `hospital_groups.js` | Vergleichsgruppen im Cockpit (Struktur: Spitaltyp, Region, Grösse, Rechtsform, Aus- und Weiterbildung; Leistungsprofil: Notfall/IPS, Herzkatheter, CMI, Fallzahl im Indikator) |
 | `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) + Engine + lokale QM-Workbench |
 | `chiqi/patient_filter.js` | Patientengruppen-Filter (Altersklasse, Geschlecht, Eintrittsart, Aufenthalt vor Eintritt) für Indikatortabelle und PDF-Bericht |
 | `chiqi/qm_workbench.js` | Fallreview, PDCA und automatisch erzeugter Datenqualitäts-/Methodennachweis |

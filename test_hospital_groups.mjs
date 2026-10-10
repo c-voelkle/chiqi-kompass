@@ -66,6 +66,44 @@ check('Auswahlwerte zählen die Betriebe; leere Werte entfallen', () => {
   assert.equal(sum, betriebe.filter(n => KZP[n].aus != null).length);
 });
 
+check('Akutbetten und CMI liegen vor, mit Datenjahr 2024 oder 2023', () => {
+  const withBeds = betriebe.filter(n => KZP[n].bet != null), withCmi = betriebe.filter(n => KZP[n].cmi != null);
+  assert.ok(withBeds.length >= 130 && withCmi.length >= 130, `${withBeds.length} / ${withCmi.length}`);
+  for (const n of withBeds) assert.ok([2023, 2024].includes(KZP[n].betJ), n);
+  for (const n of withCmi) assert.ok([2023, 2024].includes(KZP[n].cmiJ) && KZP[n].cmi > 0.2 && KZP[n].cmi < 5, n);
+  assert.equal(HG.bedClass(49.9), 'B1'); assert.equal(HG.bedClass(500), 'B5');
+  assert.equal(HG.cmiClass(0.849), 'C1'); assert.equal(HG.cmiClass(0.85), 'C2');
+  assert.equal(HG.cmiClass(1.0), 'C3'); assert.equal(HG.cmiClass(1.15), 'C4');
+});
+
+check('Notfall/IPS, Weiterbildung und Herzkatheter', () => {
+  const usz = { ...KZP['Universitätsspital Zürich'], cath: 2230 };
+  const f = (k, v) => ({ ...HG.emptyFilter(), [k]: v });
+  assert.equal(HG.matches(usz, f('care', 'NF+IPS')), true);
+  assert.equal(HG.matches(usz, f('care', 'noNF')), false);
+  assert.equal(HG.matches(usz, f('teach', 'MSt')), true);
+  assert.equal(HG.matches(usz, f('teach', 'none')), false);
+  assert.equal(HG.matches(usz, f('cath', 'yes')), true);
+  assert.equal(HG.matches({ cath: 99 }, f('cath', 'yes')), false);
+  assert.equal(HG.matches({ cath: 0 }, f('cath', 'no')), true);
+  assert.equal(HG.matches({ cath: null }, f('cath', 'no')), false);
+  const birth = { sl: [], wb: ['BGs'] };
+  assert.equal(HG.matches(birth, f('teach', 'none')), true);
+  assert.equal(HG.matches(birth, f('care', 'noNF')), true);
+});
+
+check('Fallzahl-Drittel: Grenzen, Zuordnung und Beschriftung', () => {
+  const b = HG.makeVolumeBands([0, null, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(b.cuts, [3, 6]);
+  assert.deepEqual([1, 3, 4, 6, 7, 9, 0, null].map(b.bandOf), ['V1', 'V1', 'V2', 'V2', 'V3', 'V3', null, null]);
+  assert.equal(b.labels.V3, 'oberes Drittel: 7–9 Fälle');
+  assert.equal(HG.makeVolumeBands([5, 6]), null);
+  HG.setVolumeBands(b);
+  assert.equal(HG.describe({ ...HG.emptyFilter(), volume: 'V1' }), 'Fallzahl unteres Drittel: 1–3 Fälle');
+  assert.equal(HG.matches({ volBand: 'V1' }, { ...HG.emptyFilter(), volume: 'V1' }), true);
+  HG.setVolumeBands(null);
+});
+
 check('gepoolter Rohwert = Summe O ÷ Summe n', () => {
   assert.equal(HG.pooledRate([{ x: 100, y: 10 }, { x: 300, y: 2 }]), 4);
   assert.equal(HG.pooledRate([]), null);
