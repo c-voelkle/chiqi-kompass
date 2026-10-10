@@ -29,13 +29,15 @@ currently published copy.
     node deploy/ui/test_contrast.mjs        # WCAG contrast of all tokens
     node deploy/test_compare_ux.mjs
     node deploy/test_layout_browser.mjs     # needs Playwright; fit at 1536/1280, both themes
+    node deploy/chiqi/test_patient_filter.mjs          # patient group filter (no upstream needed)
+    node deploy/test_patient_filter_browser.mjs        # needs Playwright
 
 CI (`.github/workflows/design-system.yml`) runs the same checks. In Claude Code a
 PostToolUse hook (`.claude/hooks/design-check.sh`) runs the rules after every edit
 under `deploy/`. If a rule blocks a deliberate exception, change the design doc and
 the rule together and say why in the commit.
 
-Other tests (`test_indicator_report*.mjs`, `chiqi/test_*.mjs`,
+Other tests (`test_indicator_report*.mjs`, `chiqi/test_qm_workbench.mjs`, `chiqi/test_breast_indicator.mjs`,
 `test_breast_workflow_browser.mjs`) need the upstream source folders
 (`../chiqi-engine`, `../spiges`, `../qip24_data.json`) that are maintained outside
 this repository.

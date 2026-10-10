@@ -12,6 +12,7 @@
 <script src="spiges_parser.js"></script>
 <script src="chiqi_engine.js"></script>
 <script src="chiqi_demo_defs.js"></script>
+<script src="patient_filter.js"></script>
 <script src="qm_workbench.js"></script>
 </head>
 <body class="k-body">
@@ -72,6 +73,17 @@
         <template id="tip-transfer-c"><p>Für den Vergleich im Cockpit werden nur aggregierte Kennzahlen im aktuellen Browser-Tab weitergegeben: n, O, E und SMR. Falldaten und Institutionskennungen werden nicht übernommen.</p></template>
       </div>
     </div>
+    <div class="k-panel__toolbar k-no-print" id="groupBar" role="group" aria-labelledby="groupBarLabel">
+      <span class="k-sr-only" id="groupBarLabel">Patientengruppe</span>
+      <label class="k-field"><span class="k-field__label">Altersklasse</span><select class="k-select k-w-sm" data-group="age"></select></label>
+      <label class="k-field"><span class="k-field__label">Geschlecht</span><select class="k-select k-w-sm" data-group="sex"></select></label>
+      <label class="k-field"><span class="k-field__label">Eintrittsart</span><select class="k-select k-w-sm" data-group="admission"></select></label>
+      <label class="k-field"><span class="k-field__label">Aufenthalt vor Eintritt</span><select class="k-select k-w-sm" data-group="origin"></select></label>
+      <button class="k-infotip" data-k-tip="tip-group" aria-label="Über die Patientengruppe"></button>
+      <template id="tip-group-c"><p>Die Indikatoren werden nur für die gewählten Fälle berechnet. Jeder Fall behält seine Erwartung aus der CH-Referenz für Alter und Geschlecht (bei A.1.1 zusätzlich Komorbiditäten). O/E vergleicht die Gruppe darum mit dem CH-Wert für dieselben Patienten.</p><p>Der CH-Anteil bei G5_03 ist nicht nach Patientengruppe publiziert; mit Filter wird G5_03 nicht eingeordnet.</p></template>
+      <button class="k-btn k-btn--sm k-btn--ghost" id="groupReset" type="button" hidden><i data-k-icon="x"></i>Filter zurücksetzen</button>
+    </div>
+    <p class="k-hint k-no-print" id="groupHint" hidden>BAG-Vergleich und QM-Workbench beziehen sich auf alle Fälle.</p>
     <div class="k-table-wrap">
       <table class="k-table">
         <colgroup><col><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n2"><col class="k-w-signal"></colgroup>
@@ -225,19 +237,6 @@
       var results = ChiqiEngine.computeAll(res.cases, CHIQI_DEMO.indicators);
       var austritte = res.cases.filter(function (c) { return !c.nochHospitalisiert; }).length;
 
-      var flag = function (v) { return v ? '<span class="k-tone" data-tone="caution">' + F.n(v) + '</span>' : '0'; };
-      document.getElementById('indTable').innerHTML = results.map(function (r) {
-        return '<tr><td class="k-cell-title"><strong>' + esc(r.id) + '</strong><div class="k-meta">' + esc(r.label) + '</div></td>' +
-          '<td class="k-num">' + F.n(r.n) + '</td><td class="k-num">' + F.n(r.O) + '</td>' +
-          '<td class="k-num">' + pct(r.rate) + '</td>' +
-          '<td class="k-num"' + (r.E == null ? '' : ' title="' + (r.typ === 'Anteil' ? 'Referenzanzahl n × CH-Anteil' : 'Erwartete Todesfälle') + ': ' + F.dec(r.E, 2) + '"') + '>' +
-            (r.E == null || !r.n ? '–' : pct(r.E / r.n)) + '</td>' +
-          '<td class="k-num">' + F.oe(r.smr) + '</td>' +
-          '<td class="k-num">' + flag(r.refMisses) + '</td>' +
-          '<td class="k-num">' + flag(r.outcomeMisses) + '</td>' +
-          '<td>' + UI.badge({ signal: rowSignal(r, assessRow(r)) }) + '</td></tr>';
-      }).join('');
-
       document.getElementById('metaBadge').textContent =
         'Engine v' + ChiqiEngine.ENGINE_VERSION + ' · Spez. v' + CHIQI_DEMO.meta.chiqiVersion;
       document.getElementById('refJahrNote').textContent =
@@ -289,10 +288,9 @@
         return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
       }).join('');
       LAST = { res: res, results: results, sum: sum, austritte: austritte, zeitraum: zeitraum };
-      var verzug = codingLag(sum);
-      document.getElementById('resultMeta').innerHTML = '<span>ausgetretene, codierte Fälle · ' + esc(zeitraum) + '</span>' +
-        UI.badge({ tone: 'caution', label: 'vorläufig' }) +
-        (verzug ? UI.badge({ tone: 'caution', icon: 'alert', label: 'Kodierverzug möglich' }) : '');
+      LAST.printMeta = document.getElementById('printMeta').innerHTML;
+      setupGroupFilter(res.cases);
+      renderView();
       await prepareWorkbench(file, LAST);
       setStatus('ok', 'Auswertung, Fallspur und Methodennachweis abgeschlossen');
       updateFlow();
@@ -300,6 +298,73 @@
       setStatus('danger', 'Fehler: ' + e.message);
     }
   }
+  // ---------------------------------------------- Patientengruppe ----
+  // Der Filter wirkt auf Indikatortabelle und PDF-Bericht. QM-Workbench,
+  // Nachweis und Cockpit-Übergabe beruhen immer auf allen Fällen
+  // (LAST.results), weil Projekte und BAG-Werte die ganze Institution meinen.
+  var PF = window.ChiqiPatientFilter;
+  var groupSelects = Array.prototype.slice.call(document.querySelectorAll('#groupBar [data-group]'));
+  function setupGroupFilter(cases) {
+    var opts = PF.options(cases);
+    groupSelects.forEach(function (sel) {
+      sel.innerHTML = '<option value="">alle</option>' + opts[sel.getAttribute('data-group')].map(function (o) {
+        return '<option value="' + attr(o.value) + '"' + (o.count ? '' : ' disabled') + '>' + esc(o.label) + ' (' + F.n(o.count) + ')</option>';
+      }).join('');
+      sel.value = '';
+    });
+  }
+  function currentFilter() {
+    var f = PF.emptyFilter();
+    groupSelects.forEach(function (sel) { f[sel.getAttribute('data-group')] = sel.value; });
+    return f;
+  }
+  // Für G5_03 gibt es keinen CH-Anteil je Patientengruppe: mit Filter keine Einordnung.
+  function viewSignal(r, a, filtered) {
+    if (filtered && r.typ === 'Anteil') return 'not-assessable';
+    return rowSignal(r, a);
+  }
+  function renderView() {
+    if (!LAST) return;
+    var filter = currentFilter(), active = PF.isActive(filter);
+    var cases = active ? PF.apply(LAST.res.cases, filter) : LAST.res.cases;
+    var results = active ? ChiqiEngine.computeAll(cases, CHIQI_DEMO.indicators) : LAST.results;
+    var austritte = cases.filter(function (c) { return !c.nochHospitalisiert; }).length;
+    LAST.view = { filter: filter, active: active, label: PF.describe(filter), entries: PF.entries(filter), results: results, austritte: austritte };
+
+    var flag = function (v) { return v ? '<span class="k-tone" data-tone="caution">' + F.n(v) + '</span>' : '0'; };
+    document.getElementById('indTable').innerHTML = results.map(function (r) {
+      var noRef = active && r.typ === 'Anteil';
+      var groupNote = noRef ? '<div class="k-meta">CH-Anteil nicht nach Patientengruppe verfügbar</div>' : '';
+      return '<tr><td class="k-cell-title"><strong>' + esc(r.id) + '</strong><div class="k-meta">' + esc(r.label) + '</div>' + groupNote + '</td>' +
+        '<td class="k-num">' + F.n(r.n) + '</td><td class="k-num">' + F.n(r.O) + '</td>' +
+        '<td class="k-num">' + pct(r.rate) + '</td>' +
+        '<td class="k-num"' + (r.E == null || noRef ? '' : ' title="' + (r.typ === 'Anteil' ? 'Referenzanzahl n × CH-Anteil' : 'Erwartete Todesfälle') + ': ' + F.dec(r.E, 2) + '"') + '>' +
+          (r.E == null || !r.n || noRef ? '–' : pct(r.E / r.n)) + '</td>' +
+        '<td class="k-num">' + F.oe(r.smr) + '</td>' +
+        '<td class="k-num">' + flag(r.refMisses) + '</td>' +
+        '<td class="k-num">' + flag(r.outcomeMisses) + '</td>' +
+        '<td>' + UI.badge({ signal: viewSignal(r, assessRow(r), active) }) + '</td></tr>';
+    }).join('');
+
+    var verzug = codingLag(LAST.sum);
+    document.getElementById('resultMeta').innerHTML = '<span>ausgetretene, codierte Fälle · ' + esc(LAST.zeitraum) + '</span>' +
+      UI.badge({ tone: 'caution', label: 'vorläufig' }) +
+      (verzug ? UI.badge({ tone: 'caution', icon: 'alert', label: 'Kodierverzug möglich' }) : '') +
+      (active ? UI.badge({ tone: 'info', label: LAST.view.label }) +
+        '<span>' + F.n(austritte) + ' von ' + F.n(LAST.austritte) + ' Austritten</span>' : '');
+    document.getElementById('printMeta').innerHTML = LAST.printMeta + (active
+      ? '<tr><th>Patientengruppe</th><td>' + esc(LAST.view.label) + ' (' + F.n(austritte) + ' von ' + F.n(LAST.austritte) + ' Austritten)</td></tr>' : '');
+    document.getElementById('btnCockpit').disabled = active;
+    show('groupReset', active);
+    show('groupHint', active);
+  }
+  groupSelects.forEach(function (sel) { sel.addEventListener('change', renderView); });
+  document.getElementById('groupReset').addEventListener('click', function () {
+    groupSelects.forEach(function (sel) { sel.value = ''; });
+    renderView();
+    groupSelects[0].focus();
+  });
+
   // Letztes Quartal < 60% des Medians der Vorquartale: vermutlich Kodierverzug.
   function codingLag(sum) {
     var qs = Object.keys(sum.nachQuartal).sort();
@@ -831,17 +896,21 @@
   function joinDe(a) { return a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' und ' + a[a.length - 1]; }
   function buildReport() {
     if (!LAST) return;
-    var res = LAST.res, results = LAST.results, sum = LAST.sum, austritte = LAST.austritte, zeitraum = LAST.zeitraum;
+    var res = LAST.res, sum = LAST.sum, zeitraum = LAST.zeitraum;
+    // Der Bericht folgt der Tabellenansicht, inklusive Patientengruppe.
+    var view = LAST.view || { active: false, label: '', entries: [], results: LAST.results, austritte: LAST.austritte };
+    var results = view.results, austritte = view.austritte;
     var today = F.dateLong();
     var ass = results.map(assessRow);
+    var sigs = results.map(function (r, i) { return viewSignal(r, ass[i], view.active); });
     var repSig = function (signal) {
       var sg = UI.SIGNALS[signal];
       return '<span class="rep-sig" data-signal="' + signal + '">' + (sg.mark ? sg.mark + ' ' : '') + UI.signalLabel(signal) + '</span>';
     };
-    var erhoeht = results.filter(function (r, i) { return r.typ !== 'Anteil' && ass[i].label === 'signifikant erh\u00f6ht'; });
-    var tiefer = results.filter(function (r, i) { return r.typ !== 'Anteil' && ass[i].label === 'signifikant tiefer'; });
+    var erhoeht = results.filter(function (r, i) { return sigs[i] === 'high'; });
+    var tiefer = results.filter(function (r, i) { return sigs[i] === 'low'; });
     var anteile = results.filter(function (r) { return r.typ === 'Anteil'; });
-    var nb = results.filter(function (r, i) { return ass[i].label === 'nicht beurteilbar'; });
+    var nb = results.filter(function (r, i) { return sigs[i] === 'not-assessable'; });
     var refMissTotal = results.reduce(function (a, r) { return a + (r.refMisses || 0); }, 0);
     var outcomeMissTotal = results.reduce(function (a, r) { return a + (r.outcomeMisses || 0); }, 0);
     var qs = Object.keys(sum.nachQuartal).sort();
@@ -849,12 +918,19 @@
     var inst = 'Unternehmen ' + (res.meta.entId || 'unbekannt');
     var instSub = res.meta.standorte.length ? 'Standorte (BUR): ' + res.meta.standorte.join(', ') : '';
 
-    var exec = 'Aus der SpiGes-Datei wurden ' + res.meta.counts.faelle + ' F\u00e4lle importiert (' + austritte +
-      ' Austritte, Zeitraum ' + zeitraum + ') und ' + results.length + ' CH-IQI-Indikatoren berechnet. ';
+    var exec = view.active
+      ? 'Aus der SpiGes-Datei wurden ' + res.meta.counts.faelle + ' F\u00e4lle importiert (' + LAST.austritte + ' Austritte, Zeitraum ' + zeitraum +
+        '). Die ' + results.length + ' CH-IQI-Indikatoren wurden f\u00fcr die Patientengruppe ' + view.label + ' berechnet (' + austritte + ' Austritte). '
+      : 'Aus der SpiGes-Datei wurden ' + res.meta.counts.faelle + ' F\u00e4lle importiert (' + austritte +
+        ' Austritte, Zeitraum ' + zeitraum + ') und ' + results.length + ' CH-IQI-Indikatoren berechnet. ';
     exec += erhoeht.length
       ? 'Pr\u00fcfenswert: ' + joinDe(erhoeht.map(function (r) { return r.id; })) + ' mit signifikant \u00fcber der Erwartung liegender Mortalit\u00e4t. '
       : 'Kein Mortalitätsindikator liegt statistisch signifikant über der Erwartung. ';
-    anteile.forEach(function (r) { exec += r.id + ': Anteil ' + pct(r.rate) + ' (' + r.O + '/' + r.n + ' Resektionsfälle), CH-Referenz ' + pct(r.referenceRate) + '. Richtungsneutral und ohne Risikoadjustierung. '; });
+    anteile.forEach(function (r) {
+      exec += view.active
+        ? r.id + ': Anteil ' + pct(r.rate) + ' (' + r.O + '/' + r.n + ' Resektionsfälle); der CH-Anteil ist nicht nach Patientengruppe verfügbar, daher keine Einordnung. '
+        : r.id + ': Anteil ' + pct(r.rate) + ' (' + r.O + '/' + r.n + ' Resektionsfälle), CH-Referenz ' + pct(r.referenceRate) + '. Richtungsneutral und ohne Risikoadjustierung. ';
+    });
     if (tiefer.length) exec += 'Signifikant tiefer: ' + joinDe(tiefer.map(function (r) { return r.id; })) + ' signifikant unter der Erwartung. ';
     if (nb.length) exec += nb.length + ' Indikator' + (nb.length > 1 ? 'en' : '') + ' ist wegen geringer Fallzahl, Erwartungszahl oder Datenlücken nicht beurteilbar. ';
     exec += refMissTotal
@@ -869,10 +945,11 @@
       '<div class="rep-cover-title">QM-Pr\u00fcfbericht CH-IQI<br>Unterj\u00e4hrige Auswertung</div>' +
       '<div class="rep-cover-inst">' + esc(inst) + '</div>' +
       '<div class="rep-cover-meta">' + esc(instSub) + (instSub ? '<br>' : '') +
-      'Auswertungszeitraum (Austritte): ' + esc(zeitraum) + '<br>erstellt am ' + today + '</div></div>' +
+      'Auswertungszeitraum (Austritte): ' + esc(zeitraum) + '<br>' +
+      (view.active ? 'Patientengruppe: ' + esc(view.label) + '<br>' : '') + 'erstellt am ' + today + '</div></div>' +
       '<div class="rep-cover-kpis">' +
       '<div class="rep-ck"><b>' + res.meta.counts.faelle + '</b><span>F\u00e4lle importiert</span></div>' +
-      '<div class="rep-ck"><b>' + austritte + '</b><span>Austritte im Zeitraum</span></div>' +
+      '<div class="rep-ck"><b>' + austritte + '</b><span>' + (view.active ? 'Austritte der Patientengruppe' : 'Austritte im Zeitraum') + '</span></div>' +
       '<div class="rep-ck"><b>' + erhoeht.length + '</b><span>Indikatoren signifikant erh\u00f6ht</span></div>' +
       '<div class="rep-ck"><b>' + refMissTotal + '</b><span>F\u00e4lle ohne Referenzrate (o. Ref.)</span></div></div>' +
       '<div><div class="rep-frame">Statistische Auff\u00e4lligkeit ist ein Pr\u00fcfhinweis, kein Qualit\u00e4tsurteil.</div>' +
@@ -884,7 +961,7 @@
       CHIQI_DEMO.meta.chiqiVersion + ', Referenzjahr ' + CHIQI_DEMO.indicators[0].refJahr +
       ' \u00b7 CH-IQI Kompass (Open Source, Prototyp) \u00b7 curtis.voelkle@gmail.com</div></div></div>';
 
-    html += '<div class="rep-sub"><b>' + esc(inst) + '</b> \u00b7 Zeitraum ' + esc(zeitraum) + '</div>' +
+    html += '<div class="rep-sub"><b>' + esc(inst) + '</b> \u00b7 Zeitraum ' + esc(zeitraum) + (view.active ? ' \u00b7 Patientengruppe ' + esc(view.label) : '') + '</div>' +
       '<h2>Executive Summary</h2><p class="rep-exec">' + exec + '</p>';
 
     html += '<h2>CH-IQI-Indikatoren (' + results.length + ')</h2>' +
@@ -896,14 +973,18 @@
         return '<tr><td><b>' + esc(r.id) + '</b> ' + esc(r.label) + '</td>' +
           '<td class="num">' + r.n + '</td><td class="num">' + r.O + '</td>' +
           '<td class="num">' + pct(r.rate) + '</td>' +
-          '<td class="num">' + (r.E == null || !r.n ? '\u2013' : pct(r.E / r.n)) + '</td>' +
+          '<td class="num">' + (r.E == null || !r.n || (view.active && r.typ === 'Anteil') ? '\u2013' : pct(r.E / r.n)) + '</td>' +
           '<td class="num">' + F.oe(r.smr) + '</td>' +
           '<td class="num">' + F.z(a.z) + '</td>' +
           '<td class="num">' + (r.refMisses || 0) + '</td>' +
           '<td class="num">' + (r.outcomeMisses || 0) + '</td>' +
-          '<td>' + repSig(rowSignal(r, a)) + '</td></tr>';
+          '<td>' + repSig(sigs[i]) + '</td></tr>';
       }).join('') + '</table>' +
-      '<p class="rep-note">Voraussetzungen für die Einordnung: mindestens 10 Fälle und mindestens 3 erwartete Ereignisse; bei G5_03 zusätzlich mindestens 3 erwartete Gegenereignisse. Signifikanzgrenze |z| &gt; 1.96. o. Ref. zählt fehlende Referenzwerte. G5_03 ist richtungsneutral und nicht risikoadjustiert; es wird kein SMR berechnet.</p>';
+      '<p class="rep-note">Voraussetzungen für die Einordnung: mindestens 10 Fälle und mindestens 3 erwartete Ereignisse; bei G5_03 zusätzlich mindestens 3 erwartete Gegenereignisse. Signifikanzgrenze |z| &gt; 1.96. o. Ref. zählt fehlende Referenzwerte. G5_03 ist richtungsneutral und nicht risikoadjustiert; es wird kein SMR berechnet.</p>' +
+      (view.active
+        ? '<p class="rep-note"><b>Patientengruppe:</b> ' + view.entries.map(function (e) { return esc(e[0]) + ' ' + esc(e[1]); }).join(', ') +
+          '. Jeder Fall beh\u00e4lt seine Erwartung aus der CH-Referenz; O/E vergleicht die Gruppe mit dem CH-Wert f\u00fcr dieselben Patienten. G5_03 wird mit Filter nicht eingeordnet. QM-Workbench und Nachweis beziehen sich auf alle F\u00e4lle.</p>'
+        : '');
 
     html += buildWorkbenchReportHtml();
 
@@ -939,7 +1020,7 @@
   }
   window.__chiqiReportTest = function (data) { LAST = data; buildReport(); return document.getElementById('report').innerHTML; };
   document.getElementById('btnCockpit').addEventListener('click', function () {
-    if (!LAST) return;
+    if (!LAST || (LAST.view && LAST.view.active)) return;
     // sessionStorage ist absichtlich flüchtig und vermeidet Kennzahlen in URL,
     // Server-Logs oder dauerhaftem Browser-Speicher. Beide Apps laufen unter
     // demselben Origin und der Wechsel bleibt im selben Browser-Tab.
