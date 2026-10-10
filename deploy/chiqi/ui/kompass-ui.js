@@ -18,10 +18,16 @@
 
   // ---------- 3.1 Numbers ----------
   function finite(v) { return v !== null && v !== undefined && v !== '' && isFinite(Number(v)); }
+  /* Deterministic de-CH format: grouping U+2019, decimal point. Built by hand
+     because toLocaleString('de-CH') differs between ICU versions and browsers. */
+  var GROUP = '\u2019';
   function dec(v, digits) {
     if (!finite(v)) return MISSING;
-    var d = digits == null ? 2 : digits;
-    return Number(v).toLocaleString('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
+    var d = digits == null ? 2 : digits, n = Number(v);
+    var r = Number(Math.round(Number(Math.abs(n) + 'e' + d)) + 'e-' + d);
+    var parts = r.toFixed(d).split('.');
+    var text = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, GROUP) + (parts[1] ? '.' + parts[1] : '');
+    return n < 0 && r !== 0 ? '-' + text : text;
   }
   /** Rounded value with sign always (+/U+2212); zero stays unsigned. */
   function signedDec(v, digits) {
@@ -33,7 +39,7 @@
   var fmt = {
     missing: MISSING,
     /** Integer count with de-CH grouping: 1’234 */
-    n: function (v) { return finite(v) ? Math.round(Number(v)).toLocaleString('de-CH') : MISSING; },
+    n: function (v) { return dec(v, 0); },
     /** Plain decimal with fixed digits */
     dec: dec,
     /** O/E or SMR, 2 decimals */
