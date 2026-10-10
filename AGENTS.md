@@ -47,6 +47,11 @@ Spitäler" workbook and its time series:
 openpyxl). Acute beds and CMI come from the time series (2024, else 2023). Name differences between the QIP and KZP publications are listed
 explicitly in `ALIASES` in that script; the build fails if a QIP Betrieb has no match.
 
+The QIP dataset in `deploy/cockpit.html` (`#qip-data`) is embedded in compact format 2:
+`python3 tools/build_qip_data.py <qip24_data.json>` (codes as index, rows without any
+value dropped; aggregates and G.5.3.P always kept). The page treats a missing row as
+zero cases. Never paste the raw export into the page.
+
 Other tests (`test_indicator_report*.mjs`, `chiqi/test_qm_workbench.mjs`, `chiqi/test_breast_indicator.mjs`,
 `test_breast_workflow_browser.mjs`) need the upstream source folders
 (`../chiqi-engine`, `../spiges`, `../qip24_data.json`) that are maintained outside

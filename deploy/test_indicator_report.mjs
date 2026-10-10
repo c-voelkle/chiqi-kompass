@@ -9,12 +9,12 @@ const elements = new Map();
 const el = id => {
   if (!elements.has(id)) elements.set(id, {
     value: '', textContent: '', innerHTML: '', options: [],
-    getContext: () => ({}), addEventListener() {}
+    getContext: () => ({}), addEventListener() {}, setAttribute() {}, insertAdjacentHTML() {}
   });
   return elements.get(id);
 };
 const context = vm.createContext({
-  document: { getElementById: el, body: { classList: { add() {}, remove() {} } } },
+  document: { getElementById: el, querySelectorAll: () => [], body: { classList: { add() {}, remove() {} } } },
   sessionStorage: { getItem: () => null }, location: { search: '' }, URLSearchParams,
   window: { addEventListener() {}, print() {} }, setTimeout: () => {},
   Chart: class { constructor(_ctx, config) { this.config = config; } destroy() {} toBase64Image() { return 'data:image/png;base64,test'; } }
@@ -37,9 +37,28 @@ function select(level, name, code = 'G.5.3.P', per = '24') {
 }
 const current = () => JSON.parse(evaluate('JSON.stringify(analysisVals(IDX[state().level].byInst.get(state().i).find(r=>r[1]===state().ind),state().level,state().per))'));
 
-check('published QIP dataset unchanged', () => {
+check('published QIP dataset unchanged (compact format 2, tools/build_qip_data.py)', () => {
+  // The page decodes the code index; embedded rows must equal the export row by row.
+  // Only rows without any value may be missing, never those of aggregates or G.5.3.P.
   const embedded = JSON.parse(evaluate('JSON.stringify(DB)'));
-  assert.deepEqual(embedded, JSON.parse(fs.readFileSync(new URL('../qip24_data.json', import.meta.url), 'utf8')));
+  const source = JSON.parse(fs.readFileSync(new URL('../qip24_data.json', import.meta.url), 'utf8'));
+  assert.equal(embedded.format, 2);
+  assert.deepEqual(embedded.codes, source.codes);
+  assert.deepEqual(embedded.meta, source.meta);
+  for (const level of ['betrieb', 'standort']) {
+    assert.deepEqual(embedded[level].insts, source[level].insts);
+    const kept = new Map(embedded[level].rows.map(r => [r[0] + '|' + r[1], r]));
+    let dropped = 0;
+    for (const r of source[level].rows) {
+      const e = kept.get(r[0] + '|' + r[1]);
+      if (e) { assert.deepEqual(e, r); kept.delete(r[0] + '|' + r[1]); continue; }
+      assert.ok(r.slice(2).every(v => v === null || v === 0), `${level} ${r[1]}: row with values missing`);
+      assert.ok(!source[level].insts[r[0]].a && r[1] !== 'G.5.3.P', `${level} ${r[1]}: protected row missing`);
+      dropped++;
+    }
+    assert.equal(kept.size, 0, `${level}: rows not in the export`);
+    assert.ok(dropped > 0);
+  }
 });
 for (const [name, numerator, denominator, rate] of [
   ['Hirslanden Klinik Aarau', 120, 163, 73.6], ['Klinik Hirslanden AG', 448, 568, 78.9]
