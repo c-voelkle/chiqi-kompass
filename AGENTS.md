@@ -33,6 +33,7 @@ currently published copy.
     node deploy/test_patient_filter_browser.mjs        # needs Playwright
     node deploy/test_hospital_groups.mjs               # comparison groups + KZP24 data coverage
     node deploy/test_hospital_groups_browser.mjs       # needs Playwright
+    node deploy/test_own_strata_browser.mjs            # needs Playwright; interim age group → BAG strata, funnel point
 
 CI (`.github/workflows/design-system.yml`) runs the same checks. In Claude Code a
 PostToolUse hook (`.claude/hooks/design-check.sh`) runs the rules after every edit

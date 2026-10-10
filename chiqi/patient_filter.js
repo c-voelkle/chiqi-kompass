@@ -99,6 +99,10 @@
     }
     return true;
   }
+  /** Nur die Altersklasse gewählt: dafür publiziert das BAG Teilindikatoren. */
+  function isAgeOnly(filter) {
+    return isActive(filter) && filter.age !== UNKNOWN && DIMENSIONS.every(function (d) { return d.key === 'age' ? !!filter.age : !filter[d.key]; });
+  }
   function apply(cases, filter) {
     if (!isActive(filter)) return cases.slice();
     return cases.filter(function (c) { return matches(c, filter); });
@@ -144,6 +148,7 @@
     UNKNOWN: UNKNOWN,
     emptyFilter: emptyFilter,
     isActive: isActive,
+    isAgeOnly: isAgeOnly,
     matches: matches,
     apply: apply,
     options: options,
