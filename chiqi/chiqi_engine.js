@@ -36,7 +36,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var ENGINE_VERSION = '0.6.0';
+  var ENGINE_VERSION = '0.7.0';
 
   // ------------------------------------------------------ SQL-Mini-Parser --
 
@@ -725,7 +725,10 @@
    * Dadurch sind n, O und E jederzeit auf die angezeigten Fälle rückführbar.
    */
   function createIndicatorEvaluator(ind, lists) {
-    var fF = compile(ind.sqlF, lists), fM = compile(ind.sqlM, lists);
+    var fF = ind.filterF ? compileFilter(ind.filterF, lists) : compile(ind.sqlF, lists);
+    var fM = ind.filterM ? compileFilter(ind.filterM, lists) : compile(ind.sqlM, lists);
+    var proportion = ind.typ === 'Anteil';
+    var referenceRate = proportion && Number.isFinite(ind.referenceRate) && ind.referenceRate > 0 && ind.referenceRate < 1 ? ind.referenceRate : null;
     var refMap = {}, refGrpBySex = {};
     (ind.refStrata || []).forEach(function (s) {
       refMap[s.altEGrp + '|' + s.sex] = s.pCH;
@@ -758,8 +761,10 @@
       if (denominator && glmP) {
         expectedGlm = glmP(row);
       }
-      var expected = denominator ? (glmP ? expectedGlm : expectedAgeSex) : null;
-      var outcomeMissing = denominator && row.EAus == null;
+      var expected = denominator ? (proportion ? referenceRate : (glmP ? expectedGlm : expectedAgeSex)) : null;
+      // For a procedure proportion the numerator is the CHOP definition,
+      // not the discharge outcome. Do not turn alive/dead into a numerator.
+      var outcomeMissing = !proportion && denominator && row.EAus == null;
       var expectedMissing = denominator && expected == null;
       var reason = denominator ? 'included'
         : (c.nochHospitalisiert ? 'still_hospitalized' : 'definition_not_matched');
@@ -772,7 +777,7 @@
         numerator: numerator,
         expected: expected,
         expectedAgeSex: denominator ? expectedAgeSex : null,
-        adjustment: glmP ? 'GLM (differenziertes Risikomodell)'
+        adjustment: proportion ? 'Keine Risikoadjustierung (CH-Anteil)' : glmP ? 'GLM (differenziertes Risikomodell)'
                          : (ind.refStrata ? 'Alter/Geschlecht' : null),
         modelYear: denominator && glmP && glmP.modelYear ? glmP.modelYear(row) : null,
         refGroup: denominator ? refGroup : null,
@@ -815,17 +820,19 @@
 
     // Ein Erwartungswert aus nur einem Teil des Nenners würde den SMR
     // systematisch verzerren. Deshalb wird E/SMR bei jeder Lücke gesperrt.
-    var hasExpected = !!ind.refStrata || !!ind.glm;
+    var proportion = ind.typ === 'Anteil';
+    var hasExpected = proportion || !!ind.refStrata || !!ind.glm;
     var Eeff = hasExpected && refMisses === 0 ? EPartial : null;
     var outcomeComplete = outcomeMisses === 0;
     var res = {
-      id: ind.id, label: ind.label,
+      id: ind.id, label: ind.label, typ: ind.typ || 'Mortalität',
+      referenceRate: proportion ? ind.referenceRate : null,
       n: n, O: O,
       rate: n > 0 && outcomeComplete ? O / n : null,
       E: Eeff,
       EPartial: hasExpected ? EPartial : null,
-      smr: Eeff != null && Eeff > 0 && outcomeComplete ? O / Eeff : null,
-      adjustierung: ind.glm ? 'GLM (differenziertes Risikomodell)' : (ind.refStrata ? 'Alter/Geschlecht' : null),
+      smr: !proportion && Eeff != null && Eeff > 0 && outcomeComplete ? O / Eeff : null,
+      adjustierung: proportion ? 'Keine Risikoadjustierung (CH-Anteil)' : ind.glm ? 'GLM (differenziertes Risikomodell)' : (ind.refStrata ? 'Alter/Geschlecht' : null),
       EAlterGeschlecht: null,
       refJahr: ind.refJahr || null,
       refMisses: refMisses,

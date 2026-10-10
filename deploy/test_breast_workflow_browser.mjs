@@ -18,7 +18,7 @@ try {
   await page.locator('#fileInput').setInputFiles({ name: 'synthetic-breast.xml', mimeType: 'text/xml', buffer: Buffer.from(xml) });
   await page.waitForFunction(() => document.querySelector('#status').textContent.includes('abgeschlossen'));
   const tr = page.locator('#indTable tr').filter({ hasText: 'G5_03' });
-  assert.deepEqual(await tr.locator('td').allTextContents(), ['G5_03Anteil brusterhaltende Resektionen bei Brustkrebs', '20', '15', '75.0%', '76.0%', '–', '0', '0']);
+  assert.deepEqual(await tr.locator('td').allTextContents(), ['G5_03Anteil brusterhaltende Resektionen bei Brustkrebs', '20', '15', '75.0%', '76.0%', '–', '0', '0', 'unauffällig']);
   await page.locator('[data-indicator="G5_03"]').click();
   assert.match(await page.locator('#wbIndicator').innerText(), /brusterhaltend/);
   assert.doesNotMatch(await page.locator('#wbIndicator').innerText(), /Todesfälle|verstorben|SMR/);

@@ -19,6 +19,9 @@ const context = vm.createContext({
   window: { addEventListener() {}, print() {} }, setTimeout: () => {},
   Chart: class { constructor(_ctx, config) { this.config = config; } destroy() {} toBase64Image() { return 'data:image/png;base64,test'; } }
 });
+// The page script depends on the shared UI kit (ui/kompass-ui.js), loaded first as in the page.
+vm.runInContext(fs.readFileSync(new URL('./ui/kompass-ui.js', import.meta.url), 'utf8'), context);
+context.KompassUI = context.window.KompassUI;
 vm.runInContext(script, context);
 const evaluate = code => vm.runInContext(code, context);
 let checks = 0;

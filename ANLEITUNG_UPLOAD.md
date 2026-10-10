@@ -11,6 +11,9 @@ Self-contained: Inhalt dieses Ordners 1:1 ins Repo hochladen, keine Build-Schrit
 | `spiges/index.html` | SpiGes-Import-Demo (Beta) + Parser + Testdatei |
 | `chiqi/index.html` | Unterjährige Indikator-Auswertung (Beta) + Engine + lokale QM-Workbench |
 | `chiqi/qm_workbench.js` | Fallreview, PDCA und automatisch erzeugter Datenqualitäts-/Methodennachweis |
+| `ui/` | Gemeinsames Design-System: `kompass.css` (Tokens, Komponenten), `kompass-ui.js` (Formatierung, Signale, InfoTips, Dialoge), `favicon.svg`, `gallery.html` (Referenz). Siehe `docs/DESIGN_LANGUAGE.md`. |
+| `chiqi/ui/` | Identische Kopie von `ui/`, damit `chiqi/` auch allein läuft |
+| `vendor/` | Chart.js (lokal, offline) |
 
 Teilbare Direktlinks: `…/#cockpit`, `…/#spiges`, `…/#chiqi`.
 Unterseiten funktionieren auch standalone (zeigen dann einen Zurück-Link).
@@ -36,6 +39,7 @@ Unterseiten funktionieren auch standalone (zeigen dann einen Zurück-Link).
 
 **Nichts umbenennen, Struktur nicht verändern.** `spiges_parser.js` liegt
 bewusst doppelt (in `spiges/` und `chiqi/`), damit jeder Ordner für sich läuft.
+Dasselbe gilt für `ui/` und `chiqi/ui/`: Beide Ordner mit hochladen.
 
 ## Pflege
 
@@ -44,6 +48,9 @@ Nach Änderungen kopieren:
 
     cp spiges/spiges_parser.js deploy/spiges/ && cp spiges/spiges_parser.js deploy/chiqi/
     cp chiqi-engine/chiqi_engine.js chiqi-engine/chiqi_demo_defs.js deploy/chiqi/
+    cp deploy/ui/kompass.css deploy/ui/kompass-ui.js deploy/ui/favicon.svg deploy/chiqi/ui/
+
+Vor dem Upload: `node deploy/test_design_system.mjs` (Design-Regeln, siehe `AGENTS.md`).
 
 BAG-Quelldateien und `chiqi_definitions_v55.json` gehören NICHT hierher;
 die Demos brauchen nur `chiqi_demo_defs.js`. (Nutzung der BAG-Spezifikationen

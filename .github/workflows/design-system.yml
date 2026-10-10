@@ -1,0 +1,41 @@
+name: Design system
+
+# Enforces docs/DESIGN_LANGUAGE.md on every change to the app.
+# Tests that need the upstream source repos (engine corpus, QIP dataset) are not run here.
+on:
+  push:
+    paths: ['deploy/**', 'docs/DESIGN_LANGUAGE.md', '.github/workflows/design-system.yml']
+  pull_request:
+    paths: ['deploy/**', 'docs/DESIGN_LANGUAGE.md', '.github/workflows/design-system.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Design rules, token sync and UI kit (R1–R11)
+        run: node deploy/test_design_system.mjs
+      - name: Token contrast (WCAG 2.1)
+        run: node deploy/ui/test_contrast.mjs
+      - name: Comparison UX invariants
+        run: node deploy/test_compare_ux.mjs
+
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          npx --prefix "$RUNNER_TEMP/pw" playwright install --with-deps chromium
+      - name: Fit at 1536 and 1280, light and dark (R9)
+        run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_layout_browser.mjs

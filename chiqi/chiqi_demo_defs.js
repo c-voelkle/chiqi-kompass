@@ -1,4 +1,4 @@
-// Automatisch generiert von extract_chiqi_v55.py. Nicht von Hand editieren.
+// Automatisch generiert von build_demo_subset.mjs. Nicht von Hand editieren.
 // Quelle: BAG, CH-IQI Spezifikationen Version 5.5 - 2024 (QIP24, Stand 14.04.2026, 18. Ausgabe)
 window.CHIQI_DEMO = {
  "meta": {
@@ -24,25 +24,25 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 5,
      "sex": 1,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 5,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 6,
      "sex": 1,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 6,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -54,7 +54,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 7,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -66,7 +66,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 8,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -78,7 +78,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 9,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -90,7 +90,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 10,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -493,13 +493,13 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 5,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 6,
      "sex": 1,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -517,7 +517,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 7,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -529,7 +529,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 8,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -690,13 +690,13 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 1,
      "sex": 1,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 1,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -708,19 +708,19 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 2,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 3,
      "sex": 1,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
      "altEGrp": 3,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -732,7 +732,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 4,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -756,7 +756,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 6,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -780,7 +780,7 @@ window.CHIQI_DEMO = {
      "jahr": 2024,
      "altEGrp": 8,
      "sex": 2,
-     "pCH": 0.0
+     "pCH": 0
     },
     {
      "jahr": 2024,
@@ -927,6 +927,23 @@ window.CHIQI_DEMO = {
      "pCH": 0.1323829
     }
    ]
+  },
+  {
+   "id": "G5_03",
+   "label": "Anteil brusterhaltende Resektionen bei Brustkrebs",
+   "typ": "Anteil",
+   "richtung": "neutral",
+   "cockpitCode": "G.5.3.P",
+   "denominatorCode": "G.5.2.F",
+   "numeratorCode": "G.5.3.F",
+   "sqlF": "((Sex=2 AND (InStr(AllBeh,' 8520')>0 OR InStr(AllBeh,' 8521')>0 OR InStr(AllBeh,' 8522')>0 OR InStr(AllBeh,' 8523')>0 OR InStr(AllBeh,' 8525')>0 OR InStr(AllBeh,' 8526')>0 OR InStr(AllBeh,' 8527')>0 OR InStr(AllBeh,' 8528')>0 OR InStr(AllBeh,' 8529')>0 OR InStr(AllBeh,' 852A')>0 OR InStr(AllBeh,' 852B')>0 OR InStr(AllBeh,' 852C')>0 OR InStr(AllBeh,' 853')>0 OR InStr(AllBeh,' 854')>0 OR InStr(AllBeh,' 858')>0)) OR (Sex=2 AND (InStr(AllBeh,' 85A1')>0 OR InStr(AllBeh,' 85B')>0 OR InStr(AllBeh,' 85D0')>0 OR InStr(AllBeh,' 85D9')>0 OR InStr(AllBeh,' 85G0')>0 OR InStr(AllBeh,' 85G1')>0 OR InStr(AllBeh,' 85G2')>0 OR InStr(AllBeh,' 85G3')>0 OR InStr(AllBeh,' 85G4')>0 OR InStr(AllBeh,' 85G9')>0 OR InStr(AllBeh,' 85I')>0 OR InStr(AllBeh,' 85K1')>0 OR InStr(AllBeh,' 85K3')>0 OR InStr(AllBeh,' 85K4')>0 OR InStr(AllBeh,' 85K5')>0 OR InStr(AllBeh,' 85K9')>0)) OR (Sex=2 AND (InStr(AllBeh,' 8530')>0 OR InStr(AllBeh,' 8533')>0 OR InStr(AllBeh,' 8534')>0 OR InStr(AllBeh,' 8535')>0 OR InStr(AllBeh,' 8536')>0 OR InStr(AllBeh,' 8537')>0 OR InStr(AllBeh,' 8539')>0 OR InStr(AllBeh,' 854')>0 OR InStr(AllBeh,' 85A0')>0 OR InStr(AllBeh,' 85A2')>0 OR InStr(AllBeh,' 85A3')>0 OR InStr(AllBeh,' 85A4')>0 OR InStr(AllBeh,' 85A5')>0 OR InStr(AllBeh,' 85A6')>0 OR InStr(AllBeh,' 85A7')>0 OR InStr(AllBeh,' 85A8')>0 OR InStr(AllBeh,' 85A9')>0))) AND (Sex=2 AND (InStr(AllDia,'C50')>0 OR InStr(AllDia,'D05')>0))",
+   "sqlM": "(((Sex=2 AND (InStr(AllBeh,' 8520')>0 OR InStr(AllBeh,' 8521')>0 OR InStr(AllBeh,' 8522')>0 OR InStr(AllBeh,' 8523')>0 OR InStr(AllBeh,' 8525')>0 OR InStr(AllBeh,' 8526')>0 OR InStr(AllBeh,' 8527')>0 OR InStr(AllBeh,' 8528')>0 OR InStr(AllBeh,' 8529')>0 OR InStr(AllBeh,' 852A')>0 OR InStr(AllBeh,' 852B')>0 OR InStr(AllBeh,' 852C')>0 OR InStr(AllBeh,' 853')>0 OR InStr(AllBeh,' 854')>0 OR InStr(AllBeh,' 858')>0)) OR (Sex=2 AND (InStr(AllBeh,' 85A1')>0 OR InStr(AllBeh,' 85B')>0 OR InStr(AllBeh,' 85D0')>0 OR InStr(AllBeh,' 85D9')>0 OR InStr(AllBeh,' 85G0')>0 OR InStr(AllBeh,' 85G1')>0 OR InStr(AllBeh,' 85G2')>0 OR InStr(AllBeh,' 85G3')>0 OR InStr(AllBeh,' 85G4')>0 OR InStr(AllBeh,' 85G9')>0 OR InStr(AllBeh,' 85I')>0 OR InStr(AllBeh,' 85K1')>0 OR InStr(AllBeh,' 85K3')>0 OR InStr(AllBeh,' 85K4')>0 OR InStr(AllBeh,' 85K5')>0 OR InStr(AllBeh,' 85K9')>0)) OR (Sex=2 AND (InStr(AllBeh,' 8530')>0 OR InStr(AllBeh,' 8533')>0 OR InStr(AllBeh,' 8534')>0 OR InStr(AllBeh,' 8535')>0 OR InStr(AllBeh,' 8536')>0 OR InStr(AllBeh,' 8537')>0 OR InStr(AllBeh,' 8539')>0 OR InStr(AllBeh,' 854')>0 OR InStr(AllBeh,' 85A0')>0 OR InStr(AllBeh,' 85A2')>0 OR InStr(AllBeh,' 85A3')>0 OR InStr(AllBeh,' 85A4')>0 OR InStr(AllBeh,' 85A5')>0 OR InStr(AllBeh,' 85A6')>0 OR InStr(AllBeh,' 85A7')>0 OR InStr(AllBeh,' 85A8')>0 OR InStr(AllBeh,' 85A9')>0))) AND (Sex=2 AND (InStr(AllDia,'C50')>0 OR InStr(AllDia,'D05')>0))) AND NOT (Sex=2 AND (InStr(AllBeh,' 8530')>0 OR InStr(AllBeh,' 8533')>0 OR InStr(AllBeh,' 8534')>0 OR InStr(AllBeh,' 8535')>0 OR InStr(AllBeh,' 8536')>0 OR InStr(AllBeh,' 8537')>0 OR InStr(AllBeh,' 8539')>0 OR InStr(AllBeh,' 854')>0 OR InStr(AllBeh,' 85A0')>0 OR InStr(AllBeh,' 85A2')>0 OR InStr(AllBeh,' 85A3')>0 OR InStr(AllBeh,' 85A4')>0 OR InStr(AllBeh,' 85A5')>0 OR InStr(AllBeh,' 85A6')>0 OR InStr(AllBeh,' 85A7')>0 OR InStr(AllBeh,' 85A8')>0 OR InStr(AllBeh,' 85A9')>0))",
+   "filterF": "((Sex==2 & str_detect(AllBeh,' 8520| 8521| 8522| 8523| 8525| 8526| 8527| 8528| 8529| 852A| 852B| 852C| 853| 854| 858| 85A1| 85B| 85D0| 85D9| 85G0| 85G1| 85G2| 85G3| 85G4| 85G9| 85I| 85K1| 85K3| 85K4| 85K5| 85K9')) | (Sex==2 & str_detect(AllBeh,' 8530| 8533| 8534| 8535| 8536| 8537| 8539| 854| 85A0| 85A2| 85A3| 85A4| 85A5| 85A6| 85A7| 85A8| 85A9'))) & (Sex==2 & str_detect(AllDia,'C50|D05'))",
+   "filterM": "(((Sex==2 & str_detect(AllBeh,' 8520| 8521| 8522| 8523| 8525| 8526| 8527| 8528| 8529| 852A| 852B| 852C| 853| 854| 858| 85A1| 85B| 85D0| 85D9| 85G0| 85G1| 85G2| 85G3| 85G4| 85G9| 85I| 85K1| 85K3| 85K4| 85K5| 85K9')) | (Sex==2 & str_detect(AllBeh,' 8530| 8533| 8534| 8535| 8536| 8537| 8539| 854| 85A0| 85A2| 85A3| 85A4| 85A5| 85A6| 85A7| 85A8| 85A9'))) & (Sex==2 & str_detect(AllDia,'C50|D05'))) & !(Sex==2 & str_detect(AllBeh,' 8530| 8533| 8534| 8535| 8536| 8537| 8539| 854| 85A0| 85A2| 85A3| 85A4| 85A5| 85A6| 85A7| 85A8| 85A9'))",
+   "refJahr": 2024,
+   "referenceRate": 0.7602268999999999,
+   "referenceNumerator": 7638,
+   "referenceDenominator": 10047
   }
  ]
 };

@@ -184,7 +184,7 @@ check('Nachweis-ID ist für denselben Inhalt deterministisch',
 check('inkrementelles Datei-SHA-256 stimmt mit Node überein',
   protocol.source.fileSha256 === crypto.createHash('sha256').update('<synthetic/>').digest('hex'),
   protocol.source.fileSha256);
-check('alle drei Fallspurprüfungen bestanden',
+check('alle Fallspurprüfungen bestanden',
   protocol.checks.filter(x => x.id.startsWith('trace_')).every(x => x.status === 'pass'));
 check('kleine Fallzahlen werden als Hinweis, nicht als Qualitätsurteil markiert',
   protocol.method.indicators.every(x => x.assessment === 'noch nicht belastbar'));
