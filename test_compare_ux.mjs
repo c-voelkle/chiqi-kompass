@@ -28,10 +28,10 @@ console.log('  ✔ Radar, Funnel und unterjähriger Vergleich sind entkoppelt');
 console.log('Test 2b: O/E und Funnel werden als verschiedene Fragen erklärt');
 // Each panel carries its comparison basis; the explanation sits one step away.
 assert.match(cockpit, /Massstab: eigene Erwartung/);
-assert.match(cockpit, /Massstab: CH-Rohwert, unadjustiert/);
+assert.match(cockpit, /Massstab: <span id="funnel-basis">CH-Rohwert<\/span>, unadjustiert/);
 assert.match(cockpit, /Warum Radar und Funnel abweichen können/);
 assert.match(cockpit, /Vergleichsmassstab: erwartete Ereignisse der gewählten Institution/);
-assert.match(cockpit, /Vergleichsmassstab: beobachteter Schweizer Gesamtwert, ohne Risikoadjustierung/);
+assert.match(cockpit, /Vergleichsmassstab: beobachteter Schweizer Gesamtwert oder, mit gewählter Vergleichsgruppe, deren gepoolter Rohwert; ohne Risikoadjustierung/);
 assert.match(cockpit, /id="funnel-reading"/);
 assert.match(cockpit, /Das ist kein Rechenfehler/);
 assert.match(cockpit, /function renderFunnelReading\(radar,point,p0\)/);

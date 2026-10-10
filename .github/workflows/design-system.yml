@@ -27,6 +27,8 @@ jobs:
         run: node deploy/test_compare_ux.mjs
       - name: Patient group filter
         run: node deploy/chiqi/test_patient_filter.mjs
+      - name: Hospital comparison groups
+        run: node deploy/test_hospital_groups.mjs
 
   layout:
     runs-on: ubuntu-latest
@@ -43,3 +45,5 @@ jobs:
         run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_layout_browser.mjs
       - name: Patient group filter in the browser
         run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_patient_filter_browser.mjs
+      - name: Hospital comparison groups in the browser
+        run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_hospital_groups_browser.mjs
