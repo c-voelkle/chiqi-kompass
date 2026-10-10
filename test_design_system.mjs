@@ -77,7 +77,12 @@ check('every page loads the shared UI layer and opts into it', () => {
     assert.match(html, /<body class="k-body[\s"]/, `${rel(page)} body must carry class k-body`);
     assert.match(html, /<link rel="icon" href="(?:\.\.\/)?ui\/favicon\.svg"/, `${rel(page)} must use the favicon`);
     assert.match(html, /<meta name="theme-color"/, `${rel(page)} must declare theme-color`);
-    if (!/<iframe/.test(html)) assert.match(html, /<script src="(?:\.\.\/)?ui\/kompass-ui\.js"><\/script>/, `${rel(page)} must load ui/kompass-ui.js`);
+    if (!/<iframe/.test(html)) {
+      assert.match(html, /<script src="(?:\.\.\/)?ui\/kompass-ui\.js"><\/script>/, `${rel(page)} must load ui/kompass-ui.js`);
+      const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+      assert.match(scripts[0] || '', /ui\/kompass-ui\.js$/, `${rel(page)} must load ui/kompass-ui.js before other scripts`);
+      assert.match(html, /data-k-load-error[\s>]/, `${rel(page)} needs the load-failure alert [data-k-load-error]`);
+    }
   }
 });
 

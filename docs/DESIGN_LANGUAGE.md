@@ -312,7 +312,12 @@ the gallery (`deploy/ui/gallery.html`, with a theme switch) in the same change.
 `<button class="k-infotip" data-k-tip="x" aria-label="Über …"></button>` plus
 `<template id="x-c"><p>…</p></template>` (InfoTip content),
 `<details class="k-disclosure" data-k-persist="key">` (remembered open state), and
-`data-k-standalone hidden` on a band that only shows outside the shell frame.
+`data-k-standalone hidden` on a band that only shows outside the shell frame, and
+`<div class="k-note" data-tone="danger" role="alert" data-k-load-error hidden>` with a
+`[data-k-load-error-text]` span: the page's load-failure alert. `kompass-ui.js` fills it with any
+uncaught error or missing file, so a broken page says why instead of showing empty controls.
+Pages load `kompass-ui.js` before any other script so it can catch their failures, and
+data never waits on Chart.js: tables and selects render even when charts cannot.
 
 | File | Role |
 |---|---|
