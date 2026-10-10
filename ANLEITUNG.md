@@ -36,6 +36,13 @@ standalone (zeigen dann einen Zurück-Link) und offline über `file://`.
    als getrennte Vergleichspunkte. **Im Funnel-Plot zeigen** ordnet den unterjährigen
    Wert gegen den CH-Wert oder eine Vergleichsgruppe ein.
 
+## Funktionsstand und Filtertests
+
+- [Funktionsstand für Pilottests](docs/PILOT_FUNKTIONSSTAND.md): verfügbare Funktionen,
+  Ausbaupunkte, Datengrenzen und Veröffentlichungsstatus.
+- [Testanleitung für Filter und Spitalgruppen](docs/TESTANLEITUNG_FILTER_GRUPPEN.md):
+  Tests der bereits veröffentlichten Funktionen.
+
 ## Pflege
 
 - Prüfungen vor einem Commit: siehe `AGENTS.md` (laufen auch in der CI).
