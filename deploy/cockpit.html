@@ -8,12 +8,12 @@
 <title>CH-IQI Cockpit – QIP 2024</title>
 <link rel="icon" href="ui/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="ui/kompass.css">
-<script src="vendor/chart.umd.min.js"></script>
 <script src="ui/kompass-ui.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
 </head>
 <body class="k-body">
 <header class="k-shell k-screen" data-k-standalone hidden>
-  <a class="k-brand" href="index.html#cockpit"><span data-k-mark></span>CH-IQI Kompass</a>
+  <a class="k-brand" href="index.html#cockpit"><span data-k-mark></span><span class="k-brand__text">CH-IQI Kompass</span></a>
   <div class="k-shell__end">
     <span class="k-proto">Prototyp</span>
     <a class="k-shell__link" href="mailto:curtis.voelkle@gmail.com?subject=CH-IQI%20Kompass">Feedback</a>
@@ -39,6 +39,8 @@
       <template id="tip-pdf-c"><p>Erzeugt einen druckoptimierten QM-Bericht. Im Druckdialog «Als PDF speichern» wählen und Kopf- und Fusszeilen des Browsers deaktivieren; die Seitenzahl setzt der Bericht selbst.</p></template>
     </div>
   </header>
+
+  <div class="k-note k-section" data-tone="danger" role="alert" data-k-load-error hidden><i data-k-icon="alert"></i><div><strong>Die Seite konnte nicht vollständig geladen werden.</strong> <span data-k-load-error-text></span></div></div>
 
   <div id="comparison-slot" class="comparison-slot"></div>
 
@@ -222,6 +224,8 @@ const fmtN=x=>F.n(x);
 // Statistische Signale: eine Sprache für Radar, Kennzahlen und Bericht (§2.4).
 const SIGNAL_OF={alert:'high',low:'low',dev:'deviant',ok:'inconspicuous',na:'not-assessable'};
 const TREND_SIGNAL={up:'high',down:'low',flat:'inconspicuous'};
+// Daten und Tabellen dürfen nie davon abhängen, dass die Diagramm-Bibliothek lädt.
+const HAS_CHART=typeof Chart==='function';
 const CODEMAP=new Map(DB.codes.map(c=>[c.c,c]));
 const OWN_TRANSFER_KEY='chiqiKompass.ownResults.v1';
 // Explizit anhand von Bezeichnung und Typ verifiziert. A1_01 wird bewusst
@@ -499,7 +503,7 @@ function renderFunnel(){
   const T=UI.token;
   const lim=(d,dash)=>({type:'line',data:d,borderColor:T('chart-limit'),borderWidth:1,borderDash:dash,pointRadius:0,fill:false,tension:.3,order:5});
   if(funnelChart)funnelChart.destroy();
-  funnelChart=new Chart($('funnel').getContext('2d'),{
+  if(HAS_CHART) funnelChart=new Chart($('funnel').getContext('2d'),{
     data:{datasets:[
       {type:'scatter',label:'Institutionen',data:pts,backgroundColor:T('chart-point'),pointRadius:3,pointHoverRadius:4,order:2},
       {type:'scatter',label:'Ihre Institution',data:ownPts,backgroundColor:T('card'),borderColor:T('needle'),borderWidth:2.5,pointRadius:6,pointHoverRadius:7,order:1},
@@ -541,7 +545,7 @@ function renderTrendBar(rows){
     ctx.restore();
   }};
   const lim=Math.max(2.5,...cand.map(r=>Math.abs(r.zt)))*1.08;
-  trendChart=new Chart($('trendbar').getContext('2d'),{type:'bar',plugins:[guides],
+  if(HAS_CHART) trendChart=new Chart($('trendbar').getContext('2d'),{type:'bar',plugins:[guides],
     data:{labels:cand.map(r=>r.code),datasets:[{data:cand.map(r=>r.zt),backgroundColor:cand.map(colorOf),borderRadius:2,maxBarThickness:18}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{
@@ -669,7 +673,7 @@ function renderOwnHistory(){
   setOwnStep('own-step-result','done');
   // §4.2: publizierte Werte flächig, unterjähriger Wert schraffiert (vorläufig, nicht nur Farbe).
   const T=UI.token, solid=T('subtle-foreground');
-  ownHistoryChart=new Chart($('own-history').getContext('2d'),{type:'bar',
+  if(HAS_CHART) ownHistoryChart=new Chart($('own-history').getContext('2d'),{type:'bar',
     data:{labels:periods.map(p=>p.label),datasets:[{
       label:rateLabel,
       data:periods.map(p=>p.rate),
@@ -722,9 +726,11 @@ function renderAll(){
 }
 
 (function init(){
-  UI.chartTheme(Chart);
-  UI.onThemeChange(()=>{UI.chartTheme(Chart);renderAll();});
   fillInstitutions(); fillIndicators(); fillOwnInstitutions(); fillOwnIndicators();
+  if(HAS_CHART){
+    UI.chartTheme(Chart);
+    UI.onThemeChange(()=>{UI.chartTheme(Chart);renderAll();});
+  }
   syncOwnModeLayout(!!ownTransfer);
   $('f-level').addEventListener('change',()=>{fillInstitutions();renderAll();});
   $('f-inst').addEventListener('change',()=>{

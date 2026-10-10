@@ -310,6 +310,9 @@
   }
   function chartTheme(Chart) {
     if (!Chart || !Chart.defaults) return;
+    try { applyChartTheme(Chart); } catch (e) { /* charts keep library defaults */ }
+  }
+  function applyChartTheme(Chart) {
     var d = Chart.defaults;
     d.font.family = 'ui-sans-serif, system-ui, "Segoe UI Variable", "Segoe UI", -apple-system, Roboto, sans-serif';
     d.font.size = 11;
@@ -338,6 +341,36 @@
     if (mq.addEventListener) mq.addEventListener('change', cb); else if (mq.addListener) mq.addListener(cb);
   }
 
+  // ---------- Load failures (§5: a page alert only for load failures) ----------
+  /* Shows uncaught errors and missing files in [data-k-load-error] so a broken
+     page says why instead of rendering empty controls. Registered at load, so
+     it also catches errors from scripts that run before the DOM is complete. */
+  var loadErrors = [];
+  function flushLoadErrors() {
+    if (!loadErrors.length || !doc || !doc.querySelector) return;
+    var box = doc.querySelector('[data-k-load-error]');
+    if (!box) return;
+    var text = box.querySelector('[data-k-load-error-text]');
+    if (text) text.textContent = loadErrors.join(' · ');
+    box.hidden = false;
+  }
+  function reportLoadError(message) {
+    if (loadErrors.indexOf(message) !== -1 || loadErrors.length >= 3) return;
+    loadErrors.push(message);
+    flushLoadErrors();
+  }
+  if (doc && root.addEventListener) {
+    root.addEventListener('error', function (e) {
+      var t = e.target;
+      if (t && t !== root && (t.src || t.href)) {
+        var src = String(t.src || t.href);
+        reportLoadError('Datei nicht geladen: ' + src.slice(src.lastIndexOf('/', src.length - 2) + 1));
+      } else if (e.message) {
+        reportLoadError('Fehler: ' + e.message);
+      }
+    }, true);
+  }
+
   // ---------- Page wiring ----------
   /** Static markup shorthands: <i data-k-icon="lock"></i>, <button class="k-infotip" data-k-tip="id"></button>, <span data-k-mark></span> */
   function upgrade(scope) {
@@ -356,6 +389,7 @@
 
   function init(scope) {
     upgrade(scope);
+    flushLoadErrors();
     initDisclosures(scope);
     if (doc.__kInit) return;
     doc.__kInit = true;
