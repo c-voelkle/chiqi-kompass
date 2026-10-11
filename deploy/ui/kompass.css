@@ -169,9 +169,17 @@ body.k-body {
   border: 1px solid var(--k-needle-chrome); border-radius: var(--k-radius-full); color: var(--k-chrome-foreground);
 }
 .k-tab .k-proto { border-color: var(--k-chrome-muted); padding: 0 6px; }
+/* Theme choice in the chrome band: Auto / Hell / Dunkel (kompass-ui.js) */
+.k-theme-toggle {
+  display: flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 8px; border: 0; border-radius: var(--k-radius-control);
+  background: transparent; color: var(--k-chrome-muted); font: inherit; font-size: var(--k-text-xs); cursor: pointer;
+  transition: color var(--k-fast) var(--k-ease), background-color var(--k-fast) var(--k-ease);
+}
+.k-theme-toggle:hover { color: var(--k-chrome-foreground); background: var(--k-chrome-hover); }
+.k-theme-toggle:focus-visible { outline: 2px solid var(--k-chrome-foreground); outline-offset: 2px; }
 @media (max-width: 640px) {
   .k-shell { gap: 12px; padding: 0 12px; }
-  .k-brand__text, .k-body .k-shell__link, .k-tab .k-proto { display: none; }
+  .k-brand__text, .k-body .k-shell__link, .k-tab .k-proto, .k-theme-toggle__label { display: none; }
   .k-body .k-tab { padding: 0 8px; }
 }
 .k-frame-layout { display: flex; flex-direction: column; height: 100vh; margin: 0; }

@@ -103,7 +103,10 @@
     trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
     search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
     copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
-    mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'
+    mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>'
   };
   function icon(name, opts) {
     var o = opts || {};
@@ -335,11 +338,63 @@
     t.usePointStyle = true;
   }
   function onThemeChange(fn) {
+    themeListeners.push(fn);
     if (!root.matchMedia) return;
     var mq = root.matchMedia('(prefers-color-scheme: dark)');
-    var cb = function () { fn(); };
+    var cb = function () { if (!themePreference()) fn(); };
     if (mq.addEventListener) mq.addEventListener('change', cb); else if (mq.addListener) mq.addListener(cb);
   }
+
+  // ---------- Theme choice (§1 principle 8): Auto follows the system ----------
+  /* The choice is stored per browser ('kompass.theme' = light | dark, absent = auto)
+     and set as data-theme on <html>; kompass.css holds both palettes. The shell
+     forwards it to the page in its frame by message, because file:// frames do
+     not share storage with their parent. */
+  var THEME_KEY = 'kompass.theme', THEMES = ['', 'light', 'dark'];
+  var THEME_LABEL = { '': 'Auto', light: 'Hell', dark: 'Dunkel' };
+  var THEME_ICON = { '': 'monitor', light: 'sun', dark: 'moon' };
+  var themeListeners = [];
+  function validTheme(v) { return v === 'light' || v === 'dark' ? v : ''; }
+  function themePreference() {
+    if (doc && doc.documentElement && doc.documentElement.hasAttribute('data-theme')) return validTheme(doc.documentElement.getAttribute('data-theme'));
+    try { var s = storage(); return validTheme(s && s.getItem(THEME_KEY)); } catch (e) { return ''; }
+  }
+  function applyTheme(pref, notify) {
+    var el = doc && doc.documentElement;
+    if (!el) return;
+    var before = el.getAttribute('data-theme') || '';
+    if (pref) el.setAttribute('data-theme', pref); else el.removeAttribute('data-theme');
+    syncThemeToggles();
+    forwardTheme(pref);
+    if (notify !== false && before !== pref) themeListeners.slice().forEach(function (fn) { try { fn(); } catch (e) { reportError(e); } });
+  }
+  function setTheme(pref) {
+    pref = validTheme(pref);
+    try { var s = storage(); if (s) { if (pref) s.setItem(THEME_KEY, pref); else s.removeItem(THEME_KEY); } } catch (e) { /* storage unavailable */ }
+    applyTheme(pref);
+  }
+  function forwardTheme(pref) {
+    if (!doc || !doc.querySelectorAll) return;
+    Array.prototype.forEach.call(doc.querySelectorAll('iframe'), function (f) {
+      try { f.contentWindow.postMessage({ type: 'kompass:theme', theme: pref }, '*'); } catch (e) { /* frame not ready */ }
+    });
+  }
+  function syncThemeToggles() {
+    if (!doc || !doc.querySelectorAll) return;
+    var pref = themePreference(), next = THEMES[(THEMES.indexOf(pref) + 1) % THEMES.length];
+    Array.prototype.forEach.call(doc.querySelectorAll('[data-k-theme-toggle]'), function (b) {
+      b.innerHTML = icon(THEME_ICON[pref], { small: true }) + '<span class="k-theme-toggle__label">' + THEME_LABEL[pref] + '</span>';
+      b.setAttribute('aria-label', 'Farbschema: ' + THEME_LABEL[pref] + '. Wechseln zu ' + THEME_LABEL[next]);
+      b.setAttribute('title', 'Farbschema: ' + THEME_LABEL[pref] + ' (wechseln zu ' + THEME_LABEL[next] + ')');
+      b.setAttribute('data-theme-state', pref || 'auto');
+    });
+  }
+  function cycleTheme() {
+    var pref = themePreference();
+    setTheme(THEMES[(THEMES.indexOf(pref) + 1) % THEMES.length]);
+  }
+  // Apply the stored choice before the page renders, so there is no flash of the other theme.
+  (function () { var s = null; try { s = storage(); s = s && s.getItem(THEME_KEY); } catch (e) { s = null; } if (validTheme(s) && doc && doc.documentElement) doc.documentElement.setAttribute('data-theme', validTheme(s)); })();
 
   // ---------- Load failures (§5: a page alert only for load failures) ----------
   /* Shows uncaught errors and missing files in [data-k-load-error] so a broken
@@ -399,8 +454,23 @@
     upgrade(scope);
     flushLoadErrors();
     initDisclosures(scope);
+    syncThemeToggles();
     if (doc.__kInit) return;
     doc.__kInit = true;
+    doc.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('[data-k-theme-toggle]');
+      if (t) { e.preventDefault(); cycleTheme(); }
+    });
+    // From the shell (only the parent may set the theme of a framed page).
+    root.addEventListener('message', function (e) {
+      if (!e.data || e.data.type !== 'kompass:theme' || e.source !== root.parent || root.parent === root) return;
+      applyTheme(validTheme(e.data.theme));
+    });
+    root.addEventListener('storage', function (e) { if (e.key === THEME_KEY) applyTheme(validTheme(e.newValue)); });
+    // A frame that (re)loads gets the current choice.
+    Array.prototype.forEach.call(doc.querySelectorAll('iframe'), function (f) {
+      f.addEventListener('load', function () { forwardTheme(themePreference()); });
+    });
     doc.addEventListener('mouseover', function (e) {
       var b = e.target.closest && e.target.closest('[data-k-tip]');
       if (!b || tip.pinned) return;
@@ -447,6 +517,7 @@
     infoTip: infoTip, hint: hint, readout: readout,
     confirm: confirmDialog, busy: busy,
     token: token, hatch: hatch, chartTheme: chartTheme, onThemeChange: onThemeChange,
+    theme: function () { return themePreference(); }, setTheme: setTheme,
     init: init, upgrade: upgrade, reportError: reportError, TOKEN_FALLBACK: TOKEN_FALLBACK, ICONS: ICONS
   };
   root.KompassUI = api;

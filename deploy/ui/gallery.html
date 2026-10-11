@@ -18,14 +18,14 @@
     <a class="k-tab" href="#" aria-current="page">Aktiver Tab</a>
     <a class="k-tab" href="#">Inaktiver Tab <span class="k-proto">Beta</span></a>
   </nav>
-  <div class="k-shell__end"><span class="k-proto">Prototyp</span><a class="k-shell__link" href="#">Feedback</a></div>
+  <div class="k-shell__end"><button type="button" class="k-theme-toggle" data-k-theme-toggle></button><span class="k-proto">Prototyp</span><a class="k-shell__link" href="#">Feedback</a></div>
 </header>
 <div class="k-page">
   <header class="k-strip">
     <div class="k-strip__title"><h1>UI Gallery</h1><span class="k-meta">Lebende Referenz zu docs/DESIGN_LANGUAGE.md · kompass.css und kompass-ui.js</span></div>
     <div class="k-strip__controls">
       <label class="k-field"><span class="k-field__label">Thema</span>
-        <select id="theme" class="k-select"><option value="">System</option><option value="light">Hell</option><option value="dark">Dunkel</option></select></label>
+        <select id="theme" class="k-select"><option value="">Auto</option><option value="light">Hell</option><option value="dark">Dunkel</option></select></label>
     </div>
   </header>
 
@@ -131,10 +131,10 @@
 <script>
 (function () {
   var UI = window.KompassUI, F = UI.fmt, $ = function (id) { return document.getElementById(id); };
-  $('theme').addEventListener('change', function (e) {
-    if (e.target.value) document.documentElement.setAttribute('data-theme', e.target.value);
-    else document.documentElement.removeAttribute('data-theme');
-  });
+  // Same choice as the shell's theme toggle (KompassUI.setTheme, stored per browser).
+  $('theme').value = UI.theme();
+  $('theme').addEventListener('change', function (e) { UI.setTheme(e.target.value); });
+  UI.onThemeChange(function () { $('theme').value = UI.theme(); });
   var TOKENS = ['canvas', 'card', 'muted', 'border', 'input', 'foreground', 'subtle-foreground', 'muted-foreground', 'hover', 'selected',
     'chrome', 'needle', 'primary', 'destructive', 'chart-point', 'chart-limit', 'high', 'low', 'deviant', 'inconspicuous', 'ok', 'caution'];
   $('swatches').innerHTML = TOKENS.map(function (t) {
