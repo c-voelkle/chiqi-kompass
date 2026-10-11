@@ -1,6 +1,6 @@
 # CH-IQI Kompass: Testanleitung für Filter und Spitalgruppen
 
-**Stand:** 10. Oktober 2026.  
+**Stand:** 11. Oktober 2026.
 **Gültig für:** die veröffentlichte Fassung `43299009`.  
 **Anwendung:** [CH-IQI Kompass](https://c-voelkle.github.io/chiqi-kompass/).  
 **Dauer:** etwa 15–25 Minuten.
@@ -33,10 +33,10 @@ bereitgestellt.
    und **Aufenthalt vor Eintritt** auswählen. Prüfen, ob die Auswahlbeschreibung,
    Anzahl der Austritte und Indikatorkennzahlen zur Auswahl passen.
 5. Zwei oder mehr Merkmale kombinieren, beispielsweise Altersklasse 65–84 und
-   Eintrittsart Notfall. Es müssen alle ausgewählten Bedingungen erfüllt sein.
+   Eintrittsart Notfall. Jeder ausgewählte Fall erfüllt alle gewählten Bedingungen.
    Leere Indikatorgruppen sind möglich.
 6. **PDF-Bericht** öffnen und prüfen, ob die gewählte Patientengruppe angegeben ist.
-7. Den Filter zurücksetzen. Die Ausgangswerte müssen wieder erscheinen.
+7. Den Filter zurücksetzen. Die Ausgangswerte erscheinen wieder.
 
 **Erwartete Grenzen:** Aufenthalt vor Eintritt beschreibt den Herkunftsort
 (z. B. Zuhause oder anderes Spital), keinen allgemeinen Eintrittsgrund.
@@ -86,7 +86,21 @@ Dieser Teil funktioniert auch ohne SpiGes-Datei.
    beim Wechsel des Indikators anpassen.
 7. **Indikatorbericht** öffnen und die Beschreibung der Vergleichsgruppe
    im Bericht prüfen.
-8. **Alle Betriebe** wählen: Die Gruppeneinschränkung muss aufgehoben werden.
+8. **Alle Betriebe** wählen: Die Gruppeneinschränkung wird aufgehoben.
+
+### Beispiel: gleiche soH-Werte, anderer Vergleichsrahmen
+
+Für die Solothurner Spitäler AG, A.1.1.M (Herzinfarkt) und BAG 2024 bleibt
+der eigene Punkt bei **508 Fällen und 6,1 %**. Vergleichen Sie zwei Gruppen:
+
+- **Grundversorgung / Zürich:** vier Mitglieder; Gruppenwert 1,07 %.
+  Die soH gehört nicht zur Gruppe und liegt oberhalb der 99,8%-Grenze.
+- **Ab 20'000 stationären Austritten und mit Notfallstation:** 20 Mitglieder;
+  Gruppenwert 4,54 %. Die soH gehört zur Gruppe und liegt innerhalb der 95%-Grenzen.
+
+Gruppenwert und Kontrollgrenzen verändern die Einordnung, während die Werte
+der soH gleich bleiben. Die Achsen passen sich automatisch an die dargestellten
+Betriebe an. Das O/E-Radar behält seine bisherige Referenz.
 
 **Erwartete Grenzen:**
 
@@ -107,8 +121,8 @@ Dieser Teil funktioniert auch ohne SpiGes-Datei.
 - In der unterjährigen Auswertung die indikatorbezogene Fallspur öffnen.
   Ein-/Ausschluss, Outcome und Erwartungsbeitrag exemplarisch prüfen.
   Die Ansicht zeigt höchstens 200 Zeilen und ist kein vollständiges Falldossier.
-- Optional eine zweite SpiGes-Datei einlesen. Zeitraum und Kennzahlen müssen zur
-  neuen Datei wechseln. **Die neue Datei ersetzt die aktuelle Auswertung.**
+- Optional eine zweite SpiGes-Datei einlesen. Die Auswertung zeigt anschliessend
+  Zeitraum und Kennzahlen der neuen Datei. **Die neue Datei ersetzt die aktuelle Auswertung.**
   Eine gespeicherte Historie mehrerer Uploadstände oder ein automatisches
   Zusammenführen von Dateien ist noch nicht vorhanden.
 
