@@ -38,6 +38,12 @@ try {
   assert.match(await page.locator('#own-transfer-title').innerText(), /Altersgruppe 65–84 J\./);
   const transfer = await page.evaluate(() => JSON.parse(sessionStorage.getItem('chiqiKompass.ownResults.v1')));
   assert.deepEqual(transfer.group, { age: '65-84' });
+  // Importangaben für Abgleich und Feedback-Datei: Zeitraum, Zählungen, Versionen.
+  assert.deepEqual(transfer.meta.years, [2026]);
+  assert.ok(transfer.meta.quarters.every(q => /^2026-Q[1-4]$/.test(q)));
+  assert.equal(transfer.meta.counts.faelle, 6);
+  assert.equal(transfer.meta.versions.spec, '5.5');
+  assert.doesNotMatch(JSON.stringify(transfer), /5443546|I214|845724581|52704341/, 'keine Fall-IDs, Diagnosen oder Kennungen');
   const a1 = transfer.indicators.find(r => r.id === 'A1_01');
   assert.ok(a1 && a1.n >= 1, 'gefilterte Kennzahlen übergeben');
   ok('Übergabe enthält Altersgruppe und gefilterte Kennzahlen');

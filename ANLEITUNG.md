@@ -43,6 +43,13 @@ standalone (zeigen dann einen Zurück-Link) und offline über `file://`.
 - [Testanleitung für Filter und Spitalgruppen](docs/TESTANLEITUNG_FILTER_GRUPPEN.md):
   Tests der bereits veröffentlichten Funktionen.
 
+## Pilottest mit Echtdaten
+
+Anleitung für die Pilotspitäler: `docs/TESTANLEITUNG_PILOT.md`. Mit einer SpiGes-Datei
+des ganzen Jahres 2024 zeigt das Cockpit nach der Institutionsbestätigung den
+**Abgleich mit BAG 2024** und bietet eine **Feedback-Datei** (JSON, nur aggregierte
+Kennzahlen, Zeitraum und Versionen) zum Download an.
+
 ## Pflege
 
 - Prüfungen vor einem Commit: siehe `AGENTS.md` (laufen auch in der CI).

@@ -49,3 +49,7 @@ jobs:
         run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_hospital_groups_browser.mjs
       - name: Interim age group to BAG strata and funnel
         run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_own_strata_browser.mjs
+      - name: BAG 2024 reconciliation and feedback file
+        run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_own_check_browser.mjs
+      - name: Theme toggle (Auto / Hell / Dunkel)
+        run: CHIQI_PLAYWRIGHT_PATH="$RUNNER_TEMP/pw/node_modules/playwright" node deploy/test_theme_browser.mjs

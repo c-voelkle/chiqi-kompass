@@ -110,8 +110,11 @@ different hue), and it is never used as text on a light surface.
    laptop) and at 1280 × 680, no page scrolls horizontally inside the shell frame. A table may
    scroll inside its own container only once every column is at its minimum width.
 8. **Light first, dark equal, print fixed.** Every screen token has a light and a dark value,
-   contrast-checked; the theme follows `prefers-color-scheme`. Print always uses the light
-   values. Pages never write per-theme colours themselves.
+   contrast-checked; the theme follows `prefers-color-scheme` unless the user picks *Hell* or
+   *Dunkel* with the theme toggle in the chrome band (stored per browser as `kompass.theme`,
+   set as `data-theme` on `<html>`, forwarded by the shell to the framed page; *Auto* returns
+   to the system). Print always uses the light values. Pages never write per-theme colours
+   themselves; charts redraw through `KompassUI.onThemeChange`.
 
 ### 1.1 Copy defaults (German UI)
 
@@ -312,7 +315,9 @@ the gallery (`deploy/ui/gallery.html`, with a theme switch) in the same change.
 `<button class="k-infotip" data-k-tip="x" aria-label="Über …"></button>` plus
 `<template id="x-c"><p>…</p></template>` (InfoTip content),
 `<details class="k-disclosure" data-k-persist="key">` (remembered open state), and
-`data-k-standalone hidden` on a band that only shows outside the shell frame, and
+`data-k-standalone hidden` on a band that only shows outside the shell frame,
+`<button type="button" class="k-theme-toggle" data-k-theme-toggle></button>` (theme toggle
+Auto → Hell → Dunkel; `KompassUI.theme()` / `setTheme()`), and
 `<div class="k-note" data-tone="danger" role="alert" data-k-load-error hidden>` with a
 `[data-k-load-error-text]` span: the page's load-failure alert. `kompass-ui.js` fills it with any
 uncaught error or missing file, so a broken page says why instead of showing empty controls.
@@ -469,9 +474,10 @@ colour literals to Chart.js (today `COLORS` and `'#b6bcc4CC'`-style alpha suffix
 
 48px `chrome` band: mark + `CH-IQI Kompass` (600) → tabs (`Cockpit QIP 2024`,
 `Unterjährige Auswertung`) with the `needle` underline on the active tab → right: `Prototyp`
-badge (needle outline) and `Feedback` link. Nothing else in the band. The frame below fills the
+badge (needle outline) and `Feedback` link, preceded by the theme toggle (icon plus *Auto*,
+*Hell* or *Dunkel*; icon only below 640px). Nothing else in the band. The frame below fills the
 viewport. The standalone back link inside sub-pages uses the same band, reduced to mark +
-`CH-IQI Kompass`.
+`CH-IQI Kompass` and the same end group with the theme toggle.
 
 ### 5.2 Overview: Cockpit
 

@@ -17,6 +17,7 @@
 <header class="k-shell k-screen" data-k-standalone hidden>
   <a class="k-brand" href="index.html#cockpit"><span data-k-mark></span><span class="k-brand__text">CH-IQI Kompass</span></a>
   <div class="k-shell__end">
+    <button type="button" class="k-theme-toggle" data-k-theme-toggle></button>
     <span class="k-proto">Prototyp</span>
     <a class="k-shell__link" href="mailto:curtis.voelkle@gmail.com?subject=CH-IQI%20Kompass">Feedback</a>
   </div>
@@ -204,6 +205,17 @@
       <div class="k-chart k-chart--sm"><canvas id="own-history" aria-label="Säulenvergleich der eigenen Rate für Baseline, 2024 und unterjährige Daten"></canvas></div>
       <div class="k-table-wrap k-section"><table id="own-history-table" class="k-table k-table--auto"></table></div>
     </div>
+    <section id="own-check" class="k-subsection k-section" aria-labelledby="own-check-title" data-testid="own-check" hidden>
+      <div class="k-row k-row--center">
+        <h3 class="k-subsection__title" id="own-check-title">Abgleich mit BAG 2024</h3>
+        <button class="k-infotip" data-k-tip="tip-own-check" aria-label="Über den Abgleich mit BAG 2024"></button>
+        <template id="tip-own-check-c"><p>Mit den Austritten eines vollständigen Jahres 2024 sollten die eigenen Werte die BAG-Publikation QIP 2024 nachbilden. Übereinstimmend: gleiche Fallzahl, Rate und erwartete Rate bis auf Rundung (±0.05 Prozentpunkte). Kleine Abweichung: Fallzahl höchstens 2% und Raten höchstens 0.5 Prozentpunkte daneben. Sonst deutliche Abweichung.</p><p>Die Feedback-Datei enthält den Namen der bestätigten Institution aus der BAG-Publikation, die Kennzahlen dieser Tabelle, Zeitraum, Fallzählungen und Versionen; keine Fall-IDs, Diagnosen oder Patientendaten.</p></template>
+        <span class="k-meta k-badges" id="own-check-meta"></span>
+        <span class="k-spacer"></span>
+        <button id="own-check-export" type="button" class="k-btn k-btn--sm"><i data-k-icon="download"></i>Feedback-Datei herunterladen</button>
+      </div>
+      <div class="k-table-wrap"><table id="own-check-table" class="k-table k-table--compact"></table></div>
+    </section>
     <details class="k-disclosure k-section" data-k-persist="cockpit-own-method">
       <summary><i data-k-icon="chevron-right" class="k-chevron"></i>Einordnung des Vergleichs</summary>
       <div class="k-disclosure__body own-method">
@@ -295,7 +307,7 @@ function readOwnTransfer(){
     }
     // Optional: Altersgruppe aus dem Patientenfilter der unterjährigen Auswertung.
     const age=data.group&&typeof data.group.age==='string'&&AGE_LABELS[data.group.age]?data.group.age:null;
-    return indicators.length?{version:1,indicators,group:age?{age}:null}:null;
+    return indicators.length?{version:1,indicators,group:age?{age}:null,meta:readTransferMeta(data.meta)}:null;
   }catch(e){return null;}
 }
 // BAG-Teilindikatoren nach Altersgruppe mit derselben Grundgesamtheit wie der
@@ -321,6 +333,20 @@ function ownMappings(){
   const age=ownTransfer&&ownTransfer.group&&ownTransfer.group.age;
   if(!age) return OWN_INDICATOR_MAP;
   return OWN_INDICATOR_MAP.map(m=>ageStratumMapping(m,age)).filter(Boolean);
+}
+// Importangaben der unterjährigen Auswertung (Zeitraum, Zählungen, Versionen);
+// nur bekannte Felder mit erwarteten Typen werden übernommen.
+function readTransferMeta(m){
+  if(!m||typeof m!=='object') return null;
+  const ints=a=>Array.isArray(a)?a.filter(Number.isInteger):[];
+  const strs=a=>Array.isArray(a)?a.filter(x=>typeof x==='string'&&/^\d{4}-Q[1-4]$/.test(x)):[];
+  const cnt=v=>Number.isInteger(v)&&v>=0?v:null;
+  const str=v=>typeof v==='string'&&v.length<40?v:(Number.isFinite(v)?String(v):null);
+  const c=m.counts||{}, v=m.versions||{};
+  return {years:ints(m.years),quarters:strs(m.quarters),
+    counts:{faelle:cnt(c.faelle),austritte:cnt(c.austritte),nochHospitalisiert:cnt(c.nochHospitalisiert)},
+    warnings:cnt(m.warnings),codingLag:m.codingLag===true,
+    versions:{engine:str(v.engine),spec:str(v.spec),refJahr:str(v.refJahr),parser:str(v.parser),spiges:str(v.spiges)}};
 }
 function ownMappingForCockpit(code){
   const mapping=ownMappings().find(m=>m.cockpitCode===code);
@@ -787,6 +813,7 @@ function renderOwnHistory(){
   content.hidden=true;
   title.textContent='';
   $('own-show-funnel').hidden=true;
+  $('own-check').hidden=true;
   clear.hidden=!ownTransfer;
   banner.hidden=!ownTransfer;
   controls.hidden=!ownTransfer;
@@ -815,6 +842,7 @@ function renderOwnHistory(){
     return;
   }
   setOwnStep('own-step-inst','done');
+  renderOwnCheck(i,inst);
   const mapping=ownMappingForCockpit($('own-ind').value);
   const current=mapping?ownTransfer.indicators.find(r=>r.id===mapping.sourceId):null;
   if(!mapping||!current){
@@ -865,6 +893,75 @@ function renderOwnHistory(){
       scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:proportion?100:undefined,title:{display:true,text:rateLabel},ticks:{callback:v=>fmtP(v)},grid:{color:T('chart-grid')}}}}});
   $('own-history-table').innerHTML='<thead><tr><th>Vergleichspunkt</th><th>Quelle</th><th class="k-num">Nennerfälle</th><th class="k-num">'+(proportion?'Anteil':'Rate')+'</th><th class="k-num">'+(proportion?'CH-Referenz (unadjustiert)':'erwartete Rate')+'</th>'+(proportion?'':'<th class="k-num">O/E (SMR)</th>')+'</tr></thead><tbody>'+
     periods.map((p,j)=>`<tr><td${j===2?' class="k-strong"':''}>${p.label}${j===2?' '+UI.badge({tone:'caution',label:'vorläufig'}):''}</td><td>${p.source}</td><td class="k-num">${fmtN(p.n)}</td><td class="k-num">${fmtP(p.rate)}</td><td class="k-num">${fmtP(p.expected)}</td>${proportion?'':`<td class="k-num">${F.oe(p.smr)}</td>`}</tr>`).join('')+'</tbody>';
+}
+
+// ---------- Abgleich mit BAG 2024 (Pilottest) ----------
+// Mit einem vollständigen Datenjahr 2024 sollen die eigenen Werte die Publikation
+// nachbilden. Die Einordnung ist ein Prüfschritt (Workflow-Ton), kein statistisches Signal.
+let ownCheckRows=[];
+// Die Engine rechnet A1_01 mit dem differenzierten Risikomodell (GLM); dessen publizierte
+// Erwartung steht in A.1.1.MrG. Für Altersgruppen gibt es keine MrG-Zeile.
+const OWN_GLM_EXPECTED=Object.freeze({A1_01:'A.1.1.MrG'});
+function ownCheckRow(mapping,i){
+  const cur=ownTransfer.indicators.find(r=>r.id===mapping.sourceId);
+  const row=(IDX.betrieb.byInst.get(i)||[]).find(r=>r[1]===mapping.cockpitCode);
+  const v=row?analysisVals(row,'betrieb','24'):{po:null,pe:null,smr:null,n:0,O:null};
+  const proportion=mapping.type==='P';
+  const own={n:cur.n,O:cur.O,E:cur.E,smr:cur.smr,
+    rate:cur.n>0?cur.O/cur.n*100:null, expected:cur.n>0&&cur.E!==null?cur.E/cur.n*100:null};
+  let expected=v.pe, smr=proportion?null:v.smr, note=null;
+  const glm=OWN_GLM_EXPECTED[mapping.sourceId];
+  if(glm&&mapping.age){expected=null;smr=null;note='erwartet nicht vergleichbar: anderes Risikomodell';}
+  else if(glm){
+    const g=(IDX.betrieb.byInst.get(i)||[]).find(r=>r[1]===glm), gv=g?vals(g,'betrieb','24'):null;
+    expected=gv?gv.pe:null; smr=gv?gv.smr:null; note='erwartet: Risikomodell '+glm;
+  }
+  const bag={n:v.n,O:proportion?v.O:(v.po!==null&&v.n!==null?Math.round(v.po/100*v.n):null),
+    rate:v.po, expected, smr};
+  const diff=(a,b)=>a===null||b===null?null:a-b;
+  const d={n:diff(own.n,bag.n),rate:diff(own.rate,bag.rate),expected:diff(own.expected,bag.expected)};
+  const within=(x,t)=>x===null||Math.abs(x)<=t+1e-9;
+  const nRel=d.n===null?Infinity:Math.abs(d.n)/Math.max(bag.n||0,1);
+  let status='danger';
+  if(d.n===0&&within(d.rate,.05)&&within(d.expected,.05)) status='ok';
+  else if(nRel<=.02&&within(d.rate,.5)&&within(d.expected,.5)) status='caution';
+  if(note&&expected===null) d.expected=null;
+  return {code:mapping.cockpitCode,label:mapping.label,own,bag,diff:d,status,note};
+}
+const CHECK_LABEL={ok:'übereinstimmend',caution:'kleine Abweichung',danger:'deutliche Abweichung'};
+function renderOwnCheck(i,inst){
+  const meta=ownTransfer&&ownTransfer.meta, sec=$('own-check');
+  ownCheckRows=[];
+  // Nur Austritte aus 2024 lassen sich mit QIP 2024 abgleichen.
+  if(!meta||meta.years.length!==1||meta.years[0]!==2024){sec.hidden=true;return;}
+  ownCheckRows=ownAvailableMappings().map(m=>ownCheckRow(m,i));
+  const full=['1','2','3','4'].every(q=>meta.quarters.includes('2024-Q'+q));
+  $('own-check-meta').innerHTML=`<span>${UI.esc(inst.n)}${ownTransfer.group?' · Altersgruppe '+AGE_TEXT[ownTransfer.group.age]:''}</span>`+
+    (full?'':UI.badge({tone:'caution',label:'Jahr 2024 unvollständig'}))+(meta.codingLag?UI.badge({tone:'caution',icon:'alert',label:'Kodierverzug möglich'}):'');
+  const pct=x=>fmtP(x);
+  $('own-check-table').innerHTML='<colgroup><col><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-n"><col class="k-w-signal"></colgroup>'+
+    '<thead><tr><th>Indikator</th><th class="k-num">n eigen</th><th class="k-num">n BAG</th><th class="k-num">Rate eigen</th><th class="k-num">Rate BAG</th><th class="k-num">erwartet eigen</th><th class="k-num">erwartet BAG</th><th>Abgleich</th></tr></thead><tbody>'+
+    ownCheckRows.map(r=>`<tr><td class="k-cell-title"><span class="k-trunc" title="${UI.esc(r.code+' '+r.label)}"><b>${r.code}</b> ${UI.esc(r.label)}</span>${r.note?`<div class="k-meta">${UI.esc(r.note)}</div>`:''}</td>`+
+      `<td class="k-num">${fmtN(r.own.n)}</td><td class="k-num">${fmtN(r.bag.n)}</td><td class="k-num">${pct(r.own.rate)}</td><td class="k-num">${pct(r.bag.rate)}</td>`+
+      `<td class="k-num">${pct(r.own.expected)}</td><td class="k-num">${pct(r.bag.expected)}</td>`+
+      `<td>${UI.badge({tone:r.status,label:CHECK_LABEL[r.status]})}</td></tr>`).join('')+'</tbody>';
+  sec.hidden=false;
+}
+// Feedback-Datei: aggregierte Kennzahlen, Zeitraum und Versionen, keine Falldaten.
+function ownCheckExport(){
+  const i=+$('own-inst').value, inst=IDX.betrieb.insts[i], meta=ownTransfer.meta;
+  const r1=x=>x===null||x===undefined?null:Math.round(x*1000)/1000;
+  const side=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[k,r1(v)]));
+  const doc={format:'chiqi-kompass-abgleich-1',erstellt:new Date().toISOString(),
+    werkzeug:{quelle:DB.meta.quelle,datenformat:DB.format||1},
+    institution:inst.n, altersgruppe:ownTransfer.group?ownTransfer.group.age:null, import:meta,
+    indikatoren:ownCheckRows.map(r=>({code:r.code,bezeichnung:r.label,eigen:side(r.own),bag:side(r.bag),differenz:side(r.diff),abgleich:CHECK_LABEL[r.status],hinweis:r.note}))};
+  const blob=new Blob([JSON.stringify(doc,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='chiqi-kompass-abgleich-'+doc.erstellt.slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
 function fillInstitutions(){
@@ -961,6 +1058,7 @@ try{
     const panel=$('funnel').closest('.k-panel');
     panel.scrollIntoView({block:'start'});
   });
+  $('own-check-export').addEventListener('click',ownCheckExport);
   $('own-open-chiqi').addEventListener('click',()=>{
     if(window.top!==window.self) window.top.postMessage({type:'chiqi:navigate',page:'chiqi'},'*');
     else window.location.assign('chiqi/index.html');
